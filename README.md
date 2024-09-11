@@ -36,6 +36,7 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
                 Example link: https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit<br>
                 Example id: 1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI
             </li>
+            <li>Copy "client-email" from credentials file and share your new sheet with this email, with editor permissions</li>
         </ul>
     </li>
     <li>Run Minecraft once and open your world. This will create <i>.minecraft/config</i> folder as well as <i>settings.json</i> inside your world folder
