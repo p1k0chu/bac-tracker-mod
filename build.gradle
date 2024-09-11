@@ -1,0 +1,122 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+plugins {
+	id 'fabric-loom' version '1.7-SNAPSHOT'
+	id 'maven-publish'
+	id "org.jetbrains.kotlin.jvm" version "2.0.20"
+	id "com.modrinth.minotaur" version "2.+"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	// Add repositories to retrieve artifacts from in here.
+	// You should only use this when depending on other mods because
+	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
+	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
+	// for more information about repositories.
+}
+
+loom {
+	accessWidenerPath = file("src/main/resources/bac-tracker-mod.accesswidener")
+}
+
+
+dependencies {
+	// To change the versions see the gradle.properties file
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+
+	// Fabric API. This is technically optional, but you probably want it anyway.
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	modImplementation "net.fabricmc:fabric-language-kotlin:${project.fabric_kotlin_version}"
+
+	// gson and google api
+	implementation 'com.google.api-client:google-api-client:2.0.0'
+	include 'com.google.api-client:google-api-client:2.0.0'
+	include 'com.google.http-client:google-http-client:1.44.1'
+	include 'com.google.http-client:google-http-client-gson:1.44.2'
+	include 'io.opencensus:opencensus-api:0.31.1'
+	include 'io.opencensus:opencensus-contrib-http-util:0.31.1'
+	implementation 'com.google.oauth-client:google-oauth-client-jetty:1.34.1'
+	include 'com.google.oauth-client:google-oauth-client-jetty:1.34.1'
+	implementation 'com.google.apis:google-api-services-sheets:v4-rev20220927-2.0.0'
+	include 'com.google.apis:google-api-services-sheets:v4-rev20220927-2.0.0'
+	implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
+	include 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
+	implementation 'com.google.auth:google-auth-library-credentials:1.24.1'
+	include 'com.google.auth:google-auth-library-credentials:1.24.1'
+	include 'io.grpc:grpc-context:1.27.2'
+
+//	implementation 'net.benwoodworth.knbt:knbt-jvm:0.11.5'
+//	include 'net.benwoodworth.knbt:knbt-jvm:0.11.5'
+//	include 'com.squareup.okio:okio:3.9.0'
+
+
+	// apache csv library
+	implementation 'org.apache.commons:commons-csv:1.11.0'
+	include 'org.apache.commons:commons-csv:1.11.0'
+	include 'commons-codec:commons-codec:1.17.0'
+}
+
+processResources {
+	inputs.property "version", project.version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": project.version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+}
+
+tasks.withType(KotlinCompile).all {
+	kotlinOptions {
+		jvmTarget = 21
+	}
+}
+
+java {
+	// Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+	// if it is present.
+	// If you remove this line, sources will not be generated.
+	withSourcesJar()
+
+	sourceCompatibility = JavaVersion.VERSION_21
+	targetCompatibility = JavaVersion.VERSION_21
+}
+
+jar {
+	from("LICENSE") {
+		rename { "${it}_${project.base.archivesName.get()}"}
+	}
+}
+
+modrinth {
+	BufferedReader br = new BufferedReader(new InputStreamReader(System.in))
+
+	token = System.getenv("MODRINTH_TOKEN")
+	projectId = "ELPoIqXP" // This can be the project ID or the slug. Either will work!
+
+	versionNumber = "1.0.0"
+	versionType = "beta" // `release`, `beta` or `alpha`
+	gameVersions = ["1.21", "1.21.1"]
+
+	uploadFile = remapJar
+	loaders = ["fabric"]
+
+	dependencies { // A special DSL for creating dependencies
+		// scope.type
+		// The scope can be `required`, `optional`, `incompatible`, or `embedded`
+		// The type can either be `project` or `version`
+		required.project "fabric-api" // Creates a new required dependency on Fabric API
+		required.project "fabric-language-kotlin"
+	}
+}

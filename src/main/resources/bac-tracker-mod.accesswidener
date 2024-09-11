@@ -1,0 +1,3 @@
+accessWidener v2 named
+accessible field net/minecraft/server/MinecraftServer ticksUntilAutosave I
+accessible method net/minecraft/server/MinecraftServer getAutosaveInterval ()I

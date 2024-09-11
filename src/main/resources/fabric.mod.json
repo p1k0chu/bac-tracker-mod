@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 1,
+	"id": "bac-tracker-mod",
+	"version": "${version}",
+	"name": "bac-tracker-mod",
+	"description": "tracker for bacap",
+	"authors": [
+		"p1k0chu"
+	],
+	"contact": {
+		"sources": "https://github.com/p1k0chu/bac-tracker-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/bac-tracker-mod/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "com.github.p1k0chu.MainKt::init",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"mixins": [
+		"bac-tracker-mod.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.16.4",
+		"minecraft": "~1.21",
+		"java": ">=21",
+		"fabric-api": "*",
+		"fabric-language-kotlin": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	},
+	"accessWidener": "bac-tracker-mod.accesswidener"
+}
