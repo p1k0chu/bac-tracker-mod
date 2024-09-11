@@ -8,9 +8,11 @@
 		"p1k0chu"
 	],
 	"contact": {
-		"sources": "https://github.com/p1k0chu/bac-tracker-mod"
+		"sources": "https://github.com/p1k0chu/bac-tracker-mod",
+		"homepage": "https://modrinth.com/mod/bacap-tracker",
+		"issues": "https://github.com/p1k0chu/bac-tracker-mod/issues"
 	},
-	"license": "CC0-1.0",
+	"license": "CC BY-SA 4.0",
 	"icon": "assets/bac-tracker-mod/icon.png",
 	"environment": "*",
 	"entrypoints": {
