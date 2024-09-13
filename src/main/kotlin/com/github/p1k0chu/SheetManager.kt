@@ -3,7 +3,6 @@ package com.github.p1k0chu
 import com.github.p1k0chu.config.Settings
 import com.github.p1k0chu.sheet.AdvancementSheet
 import com.github.p1k0chu.sheet.ItemSheet
-import com.github.p1k0chu.sheet.Sheet
 import com.github.p1k0chu.sheet.StatSheet
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -17,15 +16,19 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.google.gson.JsonObject
 import kotlinx.io.IOException
 import net.minecraft.server.MinecraftServer
+import net.minecraft.util.WorldSavePath
 import java.nio.file.Path
 import java.util.*
 import kotlin.concurrent.thread
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.reader
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
+
 class SheetManager(
-    settings: Settings,
+    private val settings: Settings,
     credPath: Path
 ) {
     companion object {
@@ -55,18 +58,58 @@ class SheetManager(
         .setApplicationName(APP_NAME)
         .build()
 
-    private val sheets: List<Sheet> = listOf(
-        AdvancementSheet(service, settings),
-        ItemSheet(service, settings),
-        StatSheet(service, settings)
-    )
 
-    fun update(server: MinecraftServer, onDone: (() -> (Unit))? = null) {
+    // I just create these here, so I can reuse them everytime I need them
+    private val advColumnCache: List<String> by lazy {
+        service.spreadsheets().values()
+            .get(sheetId, "${settings.advSheet.name}!${settings.advSheet.idRange}")
+            .execute()
+            .getValues()
+            .filter {
+                it.isNotEmpty()
+            }
+            .map {
+                it.first().toString()
+            }
+    }
+    private val itemIdCache: List<String> by lazy {
+        service.spreadsheets().values()
+            .get(sheetId, "${settings.itemSheet.name}!${settings.itemSheet.idRange}")
+            .execute()
+            .getValues()
+            .filter {
+                it.isNotEmpty()
+            }
+            .map {
+                it.first().toString()
+            }
+    }
+    private val statColumnCache: List<String> by lazy {
+        service.spreadsheets().values()
+            .get(sheetId, "${settings.statSheet.name}!${settings.statSheet.idRange}")
+            .execute()
+            .getValues()
+            .filter {
+                it.isNotEmpty()
+            }
+            .map {
+                it.first().toString()
+            }
+    }
+
+    fun update(
+        server: MinecraftServer,
+        forceAutosave: Boolean = false,
+        onDone: (() -> (Unit)) = {}
+    ) {
         if (job?.isAlive == true) {
             Utils.logger.warn("Requested sheet update, but it is already running. Ignoring")
             return
         }
-        server.forceAutosave()
+
+        if(settings.forceAutosave || forceAutosave) {
+            server.autosave()
+        }
 
         job = thread(
             name = "SheetManager-worker",
@@ -74,13 +117,43 @@ class SheetManager(
         ) {
             Utils.logger.debug("Thread for updates started")
 
-            val values: List<ValueRange> = sheets.map {
-                it.update(server)
-            }.flatten().plus(
-                ValueRange()
-                    .setRange(timerCell)
-                    .setValues(listOf(listOf((server.overworld.time / 20).toDuration(DurationUnit.SECONDS).toString())))
-            )
+            val advSheet = AdvancementSheet(settings, advColumnCache)
+            val itemSheet = ItemSheet(settings, itemIdCache)
+            val statSheet = StatSheet(settings, statColumnCache)
+
+
+            server.getSavePath(WorldSavePath.ADVANCEMENTS).listDirectoryEntries("*.json").forEach { path ->
+                Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
+                    advSheet.pushPlayer(path.nameWithoutExtension, json)
+                    itemSheet.pushPlayer(path.nameWithoutExtension, json)
+                }
+            }
+
+            server.getSavePath(WorldSavePath.STATS).listDirectoryEntries("*.json").forEach { path: Path ->
+                Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
+                    statSheet.pushPlayer(path.nameWithoutExtension, json)
+                }
+            }
+
+            statSheet.updateScoreboard(server)
+
+
+            val values: List<ValueRange> = listOf(
+                statSheet.getValueRange(),
+                advSheet.getValueRange(),
+                itemSheet.getValueRange()
+            ).flatten()
+                .plusElement(
+                    ValueRange()
+                        .setRange(timerCell)
+                        .setValues(
+                            listOf(
+                                listOf(
+                                    (server.overworld.time / 20).toDuration(DurationUnit.SECONDS).toString()
+                                )
+                            )
+                        )
+                )
 
             try {
                 val body: BatchUpdateValuesRequest = BatchUpdateValuesRequest()
@@ -104,9 +177,7 @@ class SheetManager(
                 }
             }
 
-            onDone?.invoke()
+            onDone()
         }
     }
-
-
 }

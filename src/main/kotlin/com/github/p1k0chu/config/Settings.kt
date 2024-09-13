@@ -4,6 +4,7 @@ import com.google.gson.annotations.SerializedName
 
 data class Settings(
     @SerializedName("spreadsheet-id") val sheetId: String = "",
+    @SerializedName("force-autosave") val forceAutosave: Boolean = true,
     @SerializedName("timer-cell") val timerCell: String = "Home!W2",
     @SerializedName("stats-enabled") val statEnabled: Boolean = true,
     @SerializedName("refresh-delay-ticks") val refreshTicks: Int = 6000,

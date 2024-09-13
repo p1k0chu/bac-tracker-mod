@@ -18,7 +18,7 @@ import kotlin.io.path.*
 
 
 /**
- * Entry point of bac-tracker-mod mod
+ * Entry point of bac-tracker mod
  */
 fun init() {
     var advRefreshDelay: Int = Int.MAX_VALUE
@@ -41,11 +41,11 @@ fun init() {
                 if (!it.exists()) it.createDirectory()
             }.resolve("settings.json")
 
-        settings = if (cf.exists()) cf.reader().use { reader ->
-            Utils.GSON.fromJson(reader, Settings::class.java)
-        }
+        settings = if (cf.exists()) Utils.parseJsonHandlingErrors<Settings>(cf).getOrNull() ?: Settings()
         else
             Settings()
+
+        require(settings!!.refreshTicks >= 600) { "Refresh time must be longer than 30s" }
 
         if (settings!!.sheetId.isBlank()) {
             Utils.logger.error(
@@ -56,6 +56,7 @@ fun init() {
                 Utils.GSON.toJson(settings, writer)
             }
             Utils.logger.info("You can run `/tracker reload` to reload settings")
+
             settings = null
             sheetManager = null
         } else {
@@ -69,20 +70,23 @@ fun init() {
                 Int.MAX_VALUE
             }
         }
-
-
     }
     ServerLifecycleEvents.SERVER_STOPPING.register {
         sheetManager?.job?.join()
+        // just QoL, if user has old config this will add any missing entries
+        it.getSavePath(WorldSavePath.ROOT)
+            .resolve("tracker")
+            .resolve("settings.json")
+            .writer().use { writer ->
+                Utils.GSON.toJson(settings, writer)
+            }
+
     }
     ServerTickEvents.END_SERVER_TICK.register { server ->
-        if (--advRefreshDelay <= 0) {
-            sheetManager?.let { sm ->
-                sm.update(server)
+        sheetManager?.let {
+            if(--advRefreshDelay <= 0) {
+                it.update(server)
                 advRefreshDelay = settings?.refreshTicks ?: 6000
-            } ?: {
-                // if sheet manager is null, don't process updates
-                advRefreshDelay = Int.MAX_VALUE
             }
         }
     }
@@ -101,8 +105,6 @@ fun init() {
                                     context.source.sendFeedback({ Text.literal("Sheets updated") }, true)
                                 }
                                 advRefreshDelay = settings?.refreshTicks ?: 6000
-                            } ?: {
-                                advRefreshDelay = Int.MAX_VALUE
                             }
 
                             1
@@ -110,15 +112,13 @@ fun init() {
                             context.source.sendFeedback({ Text.literal("SheetManager is not initialized") }, false)
                             0
                         }
-                    }).then(CommandManager.literal("reload") /* second sub command */
+                    }).then(CommandManager.literal("reload") /* sub command to reload settings and credentials */
                     .executes { context ->
                         val p = context.source.server.getSavePath(WorldSavePath.ROOT)
                             .resolve("tracker").resolve("settings.json")
 
                         settings = if (p.exists()) {
-                            p.reader().use { reader ->
-                                Utils.GSON.fromJson(reader, Settings::class.java)
-                            }
+                            Utils.parseJsonHandlingErrors<Settings>(p).getOrNull() ?: Settings()
                         } else {
                             Settings()
                         }
@@ -127,9 +127,6 @@ fun init() {
                             if (Utils.CREDENTIALS_FILE.exists() && settings?.sheetId?.isNotBlank() == true)
                                 SheetManager(settings!!, Utils.CREDENTIALS_FILE)
                             else null
-
-                        // old objects deleted, new created
-                        // old objects will be collected by GC
 
                         if (sheetManager != null) {
                             context.source.sendFeedback({
@@ -142,8 +139,6 @@ fun init() {
                                 }
                                 sheetManager?.job?.join()
                                 advRefreshDelay = settings?.refreshTicks ?: 6000
-                            } ?: {
-                                advRefreshDelay = Int.MAX_VALUE
                             }
 
                             1
