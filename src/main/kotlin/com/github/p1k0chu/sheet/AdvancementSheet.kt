@@ -4,138 +4,126 @@ import com.github.p1k0chu.Utils
 import com.github.p1k0chu.config.AdvancementConfig
 import com.github.p1k0chu.config.Settings
 import com.github.p1k0chu.data.AdvancementData
-import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import kotlinx.datetime.Instant
 import kotlinx.datetime.format
-import net.minecraft.server.MinecraftServer
-import net.minecraft.util.WorldSavePath
 import org.apache.commons.lang3.ObjectUtils.max
-import kotlin.io.path.listDirectoryEntries
-import kotlin.io.path.nameWithoutExtension
-import kotlin.io.path.reader
 
+/**
+ * Advancements sheet.
+ *
+ * Push every player's advancement data
+ *
+ * And then get a list of [ValueRange] based off all data
+ *
+ * Example:
+ * ```
+ * val advSheet = AdvancementSheet(settings, advColumnCache)
+ * advSheet.pushPlayer("uuid", jsonObject) // repeat for however many players you have
+ * val vr = advSheet.getValueRange()
+ * ```
+ * @param advColumnCache Copy of remote sheet's id column
+ */
 class AdvancementSheet(
-    service: Sheets,
-    settings: Settings
-) : Sheet {
-    private val sheetId: String = settings.sheetId
+    settings: Settings,
+    private val advColumnCache: List<String>
+) {
     private val config: AdvancementConfig = settings.advSheet
 
-    private val advColumnCache: List<String> by lazy {
-        service.spreadsheets().values()
-            .get(sheetId, "${config.name}!${config.idRange}")
-            .execute()
-            .getValues()
-            .filter {
-                it.isNotEmpty()
-            }
-            .map {
-                it.first().toString()
-            }
-    }
+    private val advancements: List<AdvancementData> = Utils.getAdvData()
+    private val advByIdMap: Map<String, AdvancementData> = advancements.associateBy { it.id }
 
-    /** Reads advancement files and returns the cells to update
-     *  @param server [MinecraftServer] object, needed to find world save folder
-     *  @return cells to update on the sheet, for batch update
+    /**
+     * @see AdvancementSheet
+     *  @param uuid uuid of player with stats
+     *  @param json advancements file parsed as [JsonObject]
      */
-    override fun update(server: MinecraftServer): List<ValueRange> {
+    fun pushPlayer(uuid: String, json: JsonObject) {
+        json.keySet().forEach {
+            if (advByIdMap[it] != null && json[it]?.isJsonObject == true) {
+                if (json[it]?.asJsonObject?.get("done")?.asBoolean == true) {
+                    advByIdMap[it]?.apply {
+                        done = true
+                        criteriaProgress = null
+                        missing = null
+                    }
 
-        val advancements: List<AdvancementData> = Utils.getAdvData()
-        val advByIdMap: Map<String, AdvancementData> = advancements.associateBy { it.id }
 
-
-        server.getSavePath(WorldSavePath.ADVANCEMENTS).listDirectoryEntries("*.json").forEach { path ->
-            val json: JsonObject = path.reader().use { reader ->
-                Utils.GSON.fromJson(reader, JsonElement::class.java).asJsonObject
-            }
-
-
-            json.keySet().forEach {
-                if (advByIdMap[it] != null && json[it]?.isJsonObject == true) {
-                    if (json[it]?.asJsonObject?.get("done")?.asBoolean == true) {
-                        advByIdMap[it]?.apply {
-                            done = true
-                            //criteriaProgress = AdvancementData.allCriteria[it].asJsonArray.size()
-                            criteriaProgress = null // optimization, null are not updated on the sheet
-                            missing = null
+                    json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.asMap()
+                        ?.forEach { (_, t: JsonElement) ->
+                            advByIdMap[it]?.completionTime = max(
+                                Instant.parse(t.asString, AdvancementData.customFormat),
+                                advByIdMap[it]?.completionTime ?: Instant.DISTANT_PAST
+                            )
                         }
+                } else {
+                    var count = 0
+                    val missingCriteria = mutableSetOf<String>()
 
-
-                        json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.asMap()
-                            ?.forEach { (_, t: JsonElement) ->
-                                advByIdMap[it]?.completionTime = max(
-                                    Instant.parse(t.asString, AdvancementData.customFormat),
-                                    advByIdMap[it]?.completionTime ?: Instant.DISTANT_PAST
-                                )
-                            }
-                    } else {
-                        var count = 0
-                        val missingCriteria = mutableSetOf<String>()
-
-                        AdvancementData.allCriteria[it].asJsonArray.forEach { i ->
-                            if (i.isJsonArray) {
-                                if (i.asJsonArray.any { j ->
-                                        json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.has(j.asString) == true
-                                    }) {
-                                    count += 1
-                                } else {
-                                    missingCriteria.add("[" + i.asJsonArray.toList().joinToString(", ") + "]")
-                                }
+                    AdvancementData.allCriteria[it].asJsonArray.forEach { i ->
+                        if (i.isJsonArray) {
+                            if (i.asJsonArray.any { j ->
+                                    json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.has(j.asString) == true
+                                }) {
+                                count += 1
                             } else {
-                                if (json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.has(i.asString) == true) {
-                                    count += 1
-                                } else {
-                                    missingCriteria.add(i.asString)
-                                }
+                                missingCriteria.add("[" + i.asJsonArray.toList().joinToString(", ") + "]")
+                            }
+                        } else {
+                            if (json[it]?.asJsonObject?.get("criteria")?.asJsonObject?.has(i.asString) == true) {
+                                count += 1
+                            } else {
+                                missingCriteria.add(i.asString)
                             }
                         }
+                    }
 
 
-                        if (count > (advByIdMap[it]?.criteriaProgress ?: 0)) {
-                            advByIdMap[it]?.run {
-                                criteriaProgress = count
-                                missing = missingCriteria
-                                player = path.nameWithoutExtension
-                            }
-
+                    if (count > (advByIdMap[it]?.criteriaProgress ?: 0)) {
+                        advByIdMap[it]?.run {
+                            criteriaProgress = count
+                            missing = missingCriteria
+                            player = uuid
                         }
                     }
                 }
             }
 
         }
-
-        return listOf(
-            ValueRange()
-                .setRange("${config.name}!${config.statusRange}")
-                .setValues(advColumnCache.map { listOf(advByIdMap[it]?.done) }),
-            ValueRange()
-                .setRange("${config.name}!${config.progressRange}")
-                .setValues(advColumnCache.map {
-                    listOf(advByIdMap[it]?.run {
-                        "${criteriaProgress ?: return@run null}/${AdvancementData.allCriteria[id]?.asJsonArray?.size() ?: Int.MAX_VALUE}"
-                    })
-                }),
-            ValueRange()
-                .setRange("${config.name}!${config.incompleteRange}")
-                .setValues(advColumnCache.map {
-                    listOf(advByIdMap[it]?.run { missing?.joinToString(", ") })
-                }),
-            ValueRange()
-                .setRange("${config.name}!${config.whoRange}")
-                .setValues(advColumnCache.map {
-                    listOf(advByIdMap[it]?.player?.let { playerUUID ->
-                        "=IMAGE(\"https://crafatar.com/avatars/${playerUUID}?size=16&overlay\")"
-                    })
-                }),
-            ValueRange()
-                .setRange("${config.name}!${config.whenRange}")
-                .setValues(advColumnCache.map {
-                    listOf(advByIdMap[it]?.completionTime?.format(AdvancementData.prettyFormat))
-                })
-        )
     }
+
+    /**
+     * @see AdvancementSheet
+     */
+    fun getValueRange() = listOf(
+        ValueRange()
+            .setRange("${config.name}!${config.statusRange}")
+            .setValues(advColumnCache.map { listOf(advByIdMap[it]?.done) }),
+        ValueRange()
+            .setRange("${config.name}!${config.progressRange}")
+            .setValues(advColumnCache.map {
+                listOf(advByIdMap[it]?.run {
+                    "${criteriaProgress ?: return@run null}/${AdvancementData.allCriteria[id]?.asJsonArray?.size() ?: Int.MAX_VALUE}"
+                })
+            }),
+        ValueRange()
+            .setRange("${config.name}!${config.incompleteRange}")
+            .setValues(advColumnCache.map {
+                listOf(advByIdMap[it]?.run { missing?.joinToString(", ") })
+            }),
+        ValueRange()
+            .setRange("${config.name}!${config.whoRange}")
+            .setValues(advColumnCache.map {
+                listOf(advByIdMap[it]?.player?.let { playerUUID ->
+                    "=IMAGE(\"https://crafatar.com/avatars/${playerUUID}?size=16&overlay\")"
+                })
+            }),
+        ValueRange()
+            .setRange("${config.name}!${config.whenRange}")
+            .setValues(advColumnCache.map {
+                listOf(advByIdMap[it]?.completionTime?.format(AdvancementData.prettyFormat))
+            })
+    )
 }

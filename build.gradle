@@ -100,12 +100,10 @@ jar {
 }
 
 modrinth {
-	BufferedReader br = new BufferedReader(new InputStreamReader(System.in))
-
 	token = System.getenv("MODRINTH_TOKEN")
 	projectId = "ELPoIqXP" // This can be the project ID or the slug. Either will work!
 
-	versionNumber = "1.0.0"
+	versionNumber = "${mod_version}"
 	versionType = "beta" // `release`, `beta` or `alpha`
 	gameVersions = ["1.21", "1.21.1"]
 
