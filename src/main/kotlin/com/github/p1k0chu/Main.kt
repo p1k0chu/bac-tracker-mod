@@ -47,8 +47,6 @@ fun init() {
         else
             Settings()
 
-        require(settings!!.refreshTicks >= 600) { "Refresh time must be longer than 30s" }
-
         if (settings!!.sheetId.isBlank()) {
             Utils.logger.error(
                 "Spread sheet link is missing from settings.json! " +
@@ -61,15 +59,18 @@ fun init() {
 
             settings = null
             sheetManager = null
+        } else if (settings!!.refreshTicks < 600) {
+            Utils.logger.error("Refresh time must be longer than 30s")
+            settings = null
+            sheetManager = null
         } else {
-            sheetManager = if(Utils.CREDENTIALS_FILE.exists()) settings?.let {
+            sheetManager = if (Utils.CREDENTIALS_FILE.exists()) settings?.let {
                 SheetManager(it, Utils.CREDENTIALS_FILE)
             } else null
 
-            advRefreshDelay = if (sheetManager != null) {
-                20
-            } else {
-                Int.MAX_VALUE
+            sheetManager?.let {
+                it.update(server)
+                advRefreshDelay = settings?.refreshTicks ?: 6000
             }
         }
     }
@@ -86,7 +87,7 @@ fun init() {
     }
     ServerTickEvents.END_SERVER_TICK.register { server ->
         sheetManager?.let {
-            if(--advRefreshDelay <= 0) {
+            if (--advRefreshDelay <= 0) {
                 it.update(server)
                 advRefreshDelay = settings?.refreshTicks ?: 6000
             }
@@ -100,7 +101,7 @@ fun init() {
                 .then(CommandManager.literal("update") /* sub command to update your sheets */
                     .executes { context ->
                         if (sheetManager != null) {
-                            context.source.sendFeedback({ Text.literal("Updating sheets...") }, true)
+                            context.source.sendMessage(Text.literal("Updating sheets..."))
 
                             sheetManager?.let {
                                 it.update(context.source.server) {
@@ -111,7 +112,7 @@ fun init() {
 
                             1
                         } else {
-                            context.source.sendFeedback({ Text.literal("SheetManager is not initialized") }, false)
+                            context.source.sendError(Text.literal("SheetManager is not initialized"))
                             0
                         }
                     }).then(CommandManager.literal("reload") /* sub command to reload settings and credentials */
