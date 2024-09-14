@@ -11,6 +11,8 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.server.command.CommandManager
+import net.minecraft.text.ClickEvent
+import net.minecraft.text.HoverEvent
 import net.minecraft.text.Text
 import net.minecraft.util.WorldSavePath
 import java.nio.file.Path
@@ -148,6 +150,32 @@ fun init() {
                             }, true)
                             0
                         }
+                    }).then(CommandManager.literal("sheet")
+                    .executes { context ->
+                        settings?.let { settings1 ->
+                            context.source.sendMessage(
+                                Text.literal("https://docs.google.com/spreadsheets/d/${settings1.sheetId}/edit")
+                                    .styled { style ->
+                                        style.withClickEvent(
+                                            ClickEvent(
+                                                ClickEvent.Action.OPEN_URL,
+                                                "https://docs.google.com/spreadsheets/d/${settings1.sheetId}/edit"
+                                            )
+                                        )
+                                            .withUnderline(true)
+                                            .withItalic(true)
+                                            .withHoverEvent(
+                                                HoverEvent(
+                                                    HoverEvent.Action.SHOW_TEXT,
+                                                    Text.literal("Click to open URL")
+                                                )
+                                            )
+                                    }
+                            )
+                        } ?: {
+                            context.source.sendError(Text.literal("SheetManager is not initialized"))
+                        }
+                        1
                     })
         )
     }
