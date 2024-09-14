@@ -126,12 +126,10 @@ fun init() {
                             Settings()
                         }
 
-                        sheetManager =
-                            if (Utils.CREDENTIALS_FILE.exists() && settings?.sheetId?.isNotBlank() == true)
-                                SheetManager(settings!!, Utils.CREDENTIALS_FILE)
-                            else null
 
-                        if (sheetManager != null) {
+                        if (Utils.CREDENTIALS_FILE.exists() && settings?.sheetId?.isNotBlank() == true && settings!!.refreshTicks >= 600) {
+                            sheetManager = SheetManager(settings!!, Utils.CREDENTIALS_FILE)
+
                             context.source.sendFeedback({
                                 Text.literal("Settings and credentials reloaded")
                             }, true)
@@ -147,7 +145,7 @@ fun init() {
                             1
                         } else {
                             context.source.sendFeedback({
-                                Text.literal("Failed to reload. Credentials OR sheet id are missing")
+                                Text.literal("Failed to reload. Credentials are missing or settings are invalid")
                             }, true)
                             0
                         }
