@@ -43,10 +43,9 @@ class StatSheet(
      */
     fun pushPlayer(uuid: String, json: JsonObject) {
         stats.forEach { (_, statData) ->
-            json[statData.category]
-                ?.asJsonObject
-                ?.get(statData.name)
-                ?.asInt
+            json["stats"].asJsonObject
+                ?.get(statData.category)?.asJsonObject
+                ?.get(statData.name)?.asInt
                 ?.let { x ->
                     when (statData.type) {
                         "sum" -> statData.value += x
