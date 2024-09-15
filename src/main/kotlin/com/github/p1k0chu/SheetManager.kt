@@ -20,6 +20,7 @@ import net.minecraft.util.WorldSavePath
 import java.nio.file.Path
 import java.util.*
 import kotlin.concurrent.thread
+import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.reader
@@ -121,17 +122,24 @@ class SheetManager(
             val itemSheet = ItemSheet(settings, itemIdCache)
             val statSheet = StatSheet(settings, statColumnCache)
 
-
-            server.getSavePath(WorldSavePath.ADVANCEMENTS).listDirectoryEntries("*.json").forEach { path ->
-                Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
-                    advSheet.pushPlayer(path.nameWithoutExtension, json)
-                    itemSheet.pushPlayer(path.nameWithoutExtension, json)
+            server.getSavePath(WorldSavePath.ADVANCEMENTS).let {
+                if (it.exists()) {
+                    it.listDirectoryEntries("*.json").forEach { path ->
+                        Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
+                            advSheet.pushPlayer(path.nameWithoutExtension, json)
+                            itemSheet.pushPlayer(path.nameWithoutExtension, json)
+                        }
+                    }
                 }
             }
 
-            server.getSavePath(WorldSavePath.STATS).listDirectoryEntries("*.json").forEach { path: Path ->
-                Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
-                    statSheet.pushPlayer(path.nameWithoutExtension, json)
+            server.getSavePath(WorldSavePath.STATS).let {
+                if(it.exists()) {
+                    it.listDirectoryEntries("*.json").forEach { path: Path ->
+                        Utils.parseJsonHandlingErrors<JsonObject>(path).getOrNull()?.let { json ->
+                            statSheet.pushPlayer(path.nameWithoutExtension, json)
+                        }
+                    }
                 }
             }
 
