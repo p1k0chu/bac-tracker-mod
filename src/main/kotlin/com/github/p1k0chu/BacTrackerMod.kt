@@ -74,12 +74,14 @@ object BacTrackerMod : ModInitializer {
         }
         ServerLifecycleEvents.SERVER_STOPPING.register {
             // just QoL, if user has old config this will add any missing entries
-            it.getSavePath(WorldSavePath.ROOT)
-                .resolve("tracker")
-                .resolve("settings.json")
-                .writer().use { writer ->
-                    Utils.GSON.toJson(settings, writer)
-                }
+            settings?.let { s ->
+                server.getSavePath(WorldSavePath.ROOT)
+                    .resolve("tracker")
+                    .resolve("settings.json")
+                    .writer().use { writer ->
+                        Utils.GSON.toJson(s, writer)
+                    }
+            }
 
         }
         ServerTickEvents.END_SERVER_TICK.register { server ->
