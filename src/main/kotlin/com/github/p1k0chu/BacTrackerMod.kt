@@ -73,7 +73,6 @@ object BacTrackerMod : ModInitializer {
             }
         }
         ServerLifecycleEvents.SERVER_STOPPING.register {
-            sheetManager?.job?.join()
             // just QoL, if user has old config this will add any missing entries
             it.getSavePath(WorldSavePath.ROOT)
                 .resolve("tracker")
@@ -136,7 +135,6 @@ object BacTrackerMod : ModInitializer {
                                     it.updateAll(context.source.server) {
                                         context.source.sendFeedback({ Text.literal("Sheets updated") }, true)
                                     }
-                                    sheetManager?.job?.join()
                                     advRefreshDelay = settings?.refreshTicks ?: 6000
                                 }
 

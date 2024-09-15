@@ -19,7 +19,8 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.util.WorldSavePath
 import java.nio.file.Path
 import java.util.*
-import kotlin.concurrent.thread
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.nameWithoutExtension
@@ -36,13 +37,9 @@ class SheetManager(
         private const val APP_NAME: String = "BACAP Google Sheet Tracker"
     }
 
-    private var sheetId: String = settings.sheetId
-    private val timerCell: String = settings.timerCell
+    val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
-    var job: Thread? = null
-        private set
-
-    private var service: Sheets = Sheets.Builder(
+    private val service: Sheets = Sheets.Builder(
         NetHttpTransport(), GsonFactory.getDefaultInstance(), HttpCredentialsAdapter(
             credPath.toFile().inputStream().use { stream -> GoogleCredentials.fromStream(stream) }
                 .createScoped(Collections.singleton(SheetsScopes.SPREADSHEETS))
@@ -63,7 +60,7 @@ class SheetManager(
     // I just create these here, so I can reuse them everytime I need them
     private val advColumnCache: List<String> by lazy {
         service.spreadsheets().values()
-            .get(sheetId, "${settings.advSheet.name}!${settings.advSheet.idRange}")
+            .get(settings.sheetId, "${settings.advSheet.name}!${settings.advSheet.idRange}")
             .execute()
             .getValues()
             .filter {
@@ -75,7 +72,7 @@ class SheetManager(
     }
     private val itemIdCache: List<String> by lazy {
         service.spreadsheets().values()
-            .get(sheetId, "${settings.itemSheet.name}!${settings.itemSheet.idRange}")
+            .get(settings.sheetId, "${settings.itemSheet.name}!${settings.itemSheet.idRange}")
             .execute()
             .getValues()
             .filter {
@@ -87,7 +84,7 @@ class SheetManager(
     }
     private val statColumnCache: List<String> by lazy {
         service.spreadsheets().values()
-            .get(sheetId, "${settings.statSheet.name}!${settings.statSheet.idRange}")
+            .get(settings.sheetId, "${settings.statSheet.name}!${settings.statSheet.idRange}")
             .execute()
             .getValues()
             .filter {
@@ -98,24 +95,11 @@ class SheetManager(
             }
     }
 
-    fun update(
+    fun updateAll(
         server: MinecraftServer,
-        forceAutosave: Boolean = false,
         onDone: (() -> (Unit)) = {}
     ) {
-        if (job?.isAlive == true) {
-            Utils.logger.warn("Requested sheet update, but it is already running. Ignoring")
-            return
-        }
-
-        if(settings.forceAutosave || forceAutosave) {
-            server.autosave()
-        }
-
-        job = thread(
-            name = "SheetManager-worker",
-            priority = 7
-        ) {
+        executor.execute {
             Utils.logger.debug("Thread for updates started")
 
             val advSheet = AdvancementSheet(settings, advColumnCache)
@@ -153,7 +137,7 @@ class SheetManager(
             ).flatten()
                 .plusElement(
                     ValueRange()
-                        .setRange(timerCell)
+                        .setRange(settings.timerCell)
                         .setValues(
                             listOf(
                                 listOf(
@@ -169,7 +153,7 @@ class SheetManager(
                     .setIncludeValuesInResponse(false)
                     .setData(values)
                 service.spreadsheets().values()
-                    .batchUpdate(sheetId, body)
+                    .batchUpdate(settings.sheetId, body)
                     .execute()
                     .also {
                         Utils.logger.info("Updated ${it.totalUpdatedCells} cells")
