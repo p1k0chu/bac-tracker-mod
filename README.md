@@ -25,6 +25,12 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
             <li>Go to <a href="https://console.cloud.google.com/apis/credentials">Credentials page</a> and create new <b>Service Account</b>
                 <ul>
                     <li>Data you enter here doesn't really matter</li>
+                </ul>
+            </li>
+            <li>Click on your service account</li>
+            <li>Go to KEYS</li>
+            <li>Create new JSON key
+                <ul>
                     <li>You will download credentials JSON file. <b>Keep it. Do not share it</b></li>
                 </ul>
             </li>
