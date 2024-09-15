@@ -18,7 +18,7 @@
 	"entrypoints": {
 		"main": [
 			{
-				"value": "com.github.p1k0chu.MainKt::init",
+				"value": "com.github.p1k0chu.BacTrackerMod",
 				"adapter": "kotlin"
 			}
 		]
