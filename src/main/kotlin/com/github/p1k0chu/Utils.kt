@@ -93,7 +93,7 @@ object Utils {
                 }
                 is NullPointerException -> {
                     // fromJson returns null if file is at EOF
-                    logger.warn("EOF file reading file: ${path.fileName}")
+                    logger.warn("EOF when reading file: ${path.fileName}")
                 }
 
                 else -> throw e
