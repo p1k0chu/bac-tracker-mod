@@ -54,11 +54,6 @@ dependencies {
 	include 'com.google.auth:google-auth-library-credentials:1.24.1'
 	include 'io.grpc:grpc-context:1.27.2'
 
-//	implementation 'net.benwoodworth.knbt:knbt-jvm:0.11.5'
-//	include 'net.benwoodworth.knbt:knbt-jvm:0.11.5'
-//	include 'com.squareup.okio:okio:3.9.0'
-
-
 	// apache csv library
 	implementation 'org.apache.commons:commons-csv:1.11.0'
 	include 'org.apache.commons:commons-csv:1.11.0'
