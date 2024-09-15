@@ -1,4 +1,5 @@
 <h1>Bac Tracker</h1>
+<b>Backport to 1.20.6</b><br>
 Advancement tracker for <a href="https://www.planetminecraft.com/data-pack/blazeandcave-s-advancements-pack-1-12/">Blazes and Caves Advancement Data pack</a>.<br>
 Inspired by <a href="https://github.com/TheTalkingMime/bac-tracker">TheTalkingMime/bac-tracker</a>, reused some .csv files from this repo.<br>
 Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">template</a> is also created by Mime
@@ -36,7 +37,7 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
             </li>
         </ol>
     </li>
-    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">1.21 Template</a> to your google disk
+    <li>Copy <a href="https://docs.google.com/spreadsheets/d/17tuIOuZTSbG2aYSQ2mDjHezgCrftF-pD_9JJ-PalDJo/edit?usp=sharing">1.20.6 Template</a> to your google disk
         <ul>
             <li>Copy of template will be in releases for every version, for future generations (you can use this if you want to play on this version in future)</li>
             <li>Copy the id of your sheet. It's in the link of your sheet (address bar), https://docs.google.com/spreadsheets/d/&lt;ID_HERE&gt;/edit<br>
