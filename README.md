@@ -1,7 +1,10 @@
 <h1>Bac Tracker</h1>
-Advancement tracker for <a href="https://www.planetminecraft.com/data-pack/blazeandcave-s-advancements-pack-1-12/">Blazes and Caves Advancement Data pack</a>.<br>
-Inspired by <a href="https://github.com/TheTalkingMime/bac-tracker">TheTalkingMime/bac-tracker</a>, reused some .csv files from this repo.<br>
-Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">template</a> is also created by Mime
+Advancement tracker for <a href="https://www.planetminecraft.com/data-pack/blazeandcave-s-advancementsMap-pack-1-12/">Blazes and Caves Advancement Data pack</a>.<br>
+Inspired by <a href="https://github.com/TheTalkingMime/bac-tracker">TheTalkingMime/bac-tracker</a><br>
+Tracker template is originally made by TheTalkingMime and tjthings
+
+Latest tracker <a href="https://docs.google.com/spreadsheets/d/1p0Nl61avCxvLxlIrD6ZAeoyIkEDiTf7C3ZIQTC-Ivew/edit?usp=sharing">template</a> for use with BACAP<br>
+You can use this tracker with any other advancement datapack, or with vanilla game, but you would have to put all the advancements in, on your own, in similar format
 
 <h1>Installation process</h1>
 <ol>
@@ -36,7 +39,7 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
             </li>
         </ol>
     </li>
-    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">1.21 Template</a> to your google disk
+    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1p0Nl61avCxvLxlIrD6ZAeoyIkEDiTf7C3ZIQTC-Ivew/edit?usp=sharing">this template</a> to your google disk
         <ul>
             <li>Copy of template will be in releases for every version, for future generations (you can use this if you want to play on this version in future)</li>
             <li>Copy the id of your sheet. It's in the link of your sheet (address bar), https://docs.google.com/spreadsheets/d/&lt;ID_HERE&gt;/edit<br>

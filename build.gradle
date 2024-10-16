@@ -1,10 +1,20 @@
+import proguard.gradle.ProGuardTask
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
+buildscript {
+	repositories {
+		mavenCentral()
+	}
+	dependencies {
+		classpath 'com.guardsquare:proguard-gradle:7.1.0'
+	}
+}
 
 plugins {
 	id 'fabric-loom' version '1.7-SNAPSHOT'
 	id 'maven-publish'
-	id "org.jetbrains.kotlin.jvm" version "2.0.20"
 	id "com.modrinth.minotaur" version "2.+"
+	id 'org.jetbrains.kotlin.jvm' version "2.0.20"
 }
 
 version = project.mod_version
@@ -15,17 +25,22 @@ base {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	mavenCentral()
 }
 
-loom {
-	accessWidenerPath = file("src/main/resources/bac-tracker-mod.accesswidener")
-}
+tasks.register('proguard', ProGuardTask) {
+	configuration file('proguard.pro')
 
+	injars(tasks.named('jar', Jar).flatMap { it.archiveFile })
+
+	if (System.getProperty('java.version').startsWith('1.')) {
+		libraryjars "${System.getProperty('java.home')}/lib/rt.jar"
+	} else {
+		libraryjars "${System.getProperty('java.home')}/jmods/java.base.jmod", jarfilter: '!**.jar', filter: '!module-info.class'
+	}
+
+	outjars(layout.buildDirectory.file("libs/${baseCoordinates}-minified.jar"))
+}
 
 dependencies {
 	// To change the versions see the gradle.properties file
@@ -53,11 +68,6 @@ dependencies {
 	implementation 'com.google.auth:google-auth-library-credentials:1.24.1'
 	include 'com.google.auth:google-auth-library-credentials:1.24.1'
 	include 'io.grpc:grpc-context:1.27.2'
-
-	// apache csv library
-	implementation 'org.apache.commons:commons-csv:1.11.0'
-	include 'org.apache.commons:commons-csv:1.11.0'
-	include 'commons-codec:commons-codec:1.17.0'
 }
 
 processResources {
@@ -84,8 +94,6 @@ java {
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
 
-	sourceCompatibility = JavaVersion.VERSION_21
-	targetCompatibility = JavaVersion.VERSION_21
 }
 
 jar {
@@ -112,4 +120,8 @@ modrinth {
 		required.project "fabric-api" // Creates a new required dependency on Fabric API
 		required.project "fabric-language-kotlin"
 	}
+}
+
+kotlin {
+	jvmToolchain(21)
 }
