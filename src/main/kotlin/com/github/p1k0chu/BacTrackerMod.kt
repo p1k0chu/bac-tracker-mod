@@ -47,7 +47,7 @@ object BacTrackerMod : ModInitializer {
 
             if (settings!!.sheetId.isBlank()) {
                 Utils.logger.error(
-                    "Spread sheet link is missing from settings.json! " +
+                    "Spread sheet id is missing from settings.json! " +
                             "Please edit ${cf.absolute().normalize()}"
                 )
                 cf.writer().use { writer ->
