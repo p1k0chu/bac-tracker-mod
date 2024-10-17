@@ -73,7 +73,7 @@ object BacTrackerMod : ModInitializer {
                 }
             }
         }
-        ServerLifecycleEvents.SERVER_STOPPING.register {
+        ServerLifecycleEvents.SERVER_STOPPING.register { server ->
             // just QoL, if user has old config this will add any missing entries
             settings?.let { s ->
                 server.getSavePath(WorldSavePath.ROOT)
