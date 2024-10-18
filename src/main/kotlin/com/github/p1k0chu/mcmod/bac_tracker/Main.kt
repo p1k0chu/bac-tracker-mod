@@ -49,11 +49,6 @@ import java.io.File
 import java.io.FileNotFoundException
 import java.io.FileReader
 import java.io.FileWriter
-import java.io.InputStream
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.nio.file.Path
 import java.time.Instant
 import java.time.ZoneId
@@ -65,6 +60,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import kotlin.jvm.optionals.getOrNull
 import kotlin.math.min
 
 
@@ -136,7 +132,7 @@ class Main : ModInitializer {
                             ComparingType.SUM ->
                                 if (value > bestValue) {
                                     bestValue = value
-                                    bestPlayer = getUuid(entry.owner())
+                                    bestPlayer = entry.owner()
                                 }
 
                             ComparingType.MAX -> bestValue += value
@@ -166,8 +162,8 @@ class Main : ModInitializer {
                         val cell: String? = getCellByIndex(this.settings!!.statSheet.whoRange, sData.index)
 
                         if (cell != null) {
-                            val value = ValueRange().setValues(listOf(listOf((bestPlayer))))
-                                .setRange("${this.settings!!.itemSheet.name}!$cell")
+                            val value = ValueRange().setValues(listOf(listOf(getProfilePictureByUuid(server.userCache?.findByName(sData.player)?.getOrNull()?.id?.toString()))))
+                                .setRange("${this.settings!!.statSheet.name}!$cell")
 
                             synchronized(this.updatePool) {
                                 // scp is scoreboard player, trust me
@@ -683,7 +679,7 @@ class Main : ModInitializer {
                         if (comp == "max") {
                             if (value > bestValue) {
                                 bestValue = value
-                                bestPlayer = getUuid(entry.owner())
+                                bestPlayer = entry.owner()
                             }
                         } else if (comp == "sum") {
                             bestValue += value
@@ -733,7 +729,7 @@ class Main : ModInitializer {
                     }),
                 // player with the best stat (if present)
                 ValueRange().setRange("${settings!!.statSheet.name}!${settings!!.statSheet.whoRange}")
-                    .setValues(statIds.map { i -> listOf(getProfilePictureByUuid(this.statMap?.get(i)?.player)) }),
+                    .setValues(statIds.map { i -> listOf(getProfilePictureByUuid(server.userCache?.findByName(this.statMap?.get(i)?.player ?: this.scoreboardMap?.get(i)?.player ?: return@map emptyList())?.getOrNull()?.id?.toString())) }),
 
                 // items
                 // status
@@ -811,31 +807,6 @@ class Main : ModInitializer {
             var startNumber: Int = m.group("sN").toIntOrNull() ?: return null
 
             return "$startLetter${startNumber + index}:$endLetter"
-        }
-
-        fun getUuid(playerIgn: String?): String? {
-            try {
-                val req =
-                    HttpRequest.newBuilder().uri(URI("https://api.mojang.com/users/profiles/minecraft/$playerIgn"))
-                        .GET().build()
-                val client = HttpClient.newBuilder().build()
-                val response: HttpResponse<InputStream> =
-                    client.send(req, HttpResponse.BodyHandlers.ofInputStream())
-
-                when (response.statusCode()) {
-                    200 -> {
-                        response.body().reader().use { r ->
-                            val j: JsonObject = GSON.fromJson(r, JsonObject::class.java) ?: return null
-                            return j["id"].asString
-                        }
-                    }
-
-                    404 -> logger.error("Player $playerIgn does not exist")
-                }
-            } catch (e: IOException) {
-                logger.error("Error trying to get uuid of player $playerIgn", e)
-            }
-            return null
         }
     }
 }
