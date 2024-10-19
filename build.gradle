@@ -68,6 +68,9 @@ dependencies {
 	implementation 'com.google.auth:google-auth-library-credentials:1.24.1'
 	include 'com.google.auth:google-auth-library-credentials:1.24.1'
 	include 'io.grpc:grpc-context:1.27.2'
+
+	// unit tests
+	testImplementation 'org.jetbrains.kotlin:kotlin-test'
 }
 
 processResources {
@@ -124,4 +127,8 @@ modrinth {
 
 kotlin {
 	jvmToolchain(21)
+}
+
+test {
+	useJUnitPlatform()
 }
