@@ -62,6 +62,9 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import kotlin.io.path.listDirectoryEntries
+import kotlin.io.path.name
+import kotlin.io.path.reader
 import kotlin.jvm.optionals.getOrNull
 import kotlin.math.min
 
@@ -429,9 +432,9 @@ class Main : ModInitializer {
      */
     private fun reloadConfig(server: MinecraftServer): Boolean {
         try {
+            // config folder in .minecraft/config/
             val configFolder: Path = FabricLoader.getInstance().configDir.resolve(MOD_ID)
-            val credPath = configFolder.resolve("credentials.json")
-
+            // try creating this folder if it doesn't exist yet
             if (!configFolder.toFile().isDirectory && !configFolder.toFile().mkdir()) {
                 throw IOException(
                     "failed to create new directory: ${
@@ -440,14 +443,15 @@ class Main : ModInitializer {
                 )
             }
 
-            val settingsFolder = server.getSavePath(WorldSavePath.ROOT).resolve("tracker")
-            val settingsFile = settingsFolder.resolve("settings.json")
+            // credentials.json in .minecraft/config/MOD_ID/ folder
+            val credPath = configFolder.resolve("credentials.json")
 
-            // read the email from json file
+            // read the email from credentials file
+            // if it doesn't exist will simply throw FileNotFoundException
             var email: String? = credPath.toFile().reader().use { r ->
                 val j: JsonObject = GSON.fromJson<JsonObject>(r, JsonObject::class.java)
 
-                j.get("client_email").asString
+                return@use j.get("client_email").asString
             }
 
             this.sheetApi = Sheets.Builder(NetHttpTransport(),
@@ -457,7 +461,11 @@ class Main : ModInitializer {
                     .createScoped(mutableSetOf<String?>(SheetsScopes.SPREADSHEETS)).createDelegated(email)))
                 .setApplicationName(APP_NAME).build()
 
+            // settings folder and file inside of world folder
+            val settingsFolder = server.getSavePath(WorldSavePath.ROOT).resolve("tracker")
+            val settingsFile = settingsFolder.resolve("settings.json")
 
+            // try creating settings folder if it doesn't exist
             if (!settingsFolder.toFile().isDirectory && !settingsFolder.toFile().mkdir()) {
                 throw IOException(
                     "failed to create new directory: ${
@@ -524,7 +532,7 @@ class Main : ModInitializer {
                     .map { it.first().toString() }
 
             for (i in advResult.indices) {
-                val advancementEntry = server.advancementLoader.get(Identifier.of(advResult[i]))
+                val advancementEntry: AdvancementEntry? = server.advancementLoader.get(Identifier.of(advResult[i]))
 
                 if (advancementEntry == null) {
                     logger.warn("Couldn't find loaded advancement with name {}", advResult[i])
@@ -545,33 +553,36 @@ class Main : ModInitializer {
 
             val advancementFolder = server.getSavePath(WorldSavePath.ADVANCEMENTS)
 
+            // formatter used to parse timestamps inside of advancement json files
             val minecraftTimeFormatter: DateTimeFormatter =
                 DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT)
                     .withZone(ZoneId.systemDefault())
 
-            advancementFolder.toFile().listFiles { file: File -> file.name.endsWith(".json") }?.forEach { advFile ->
-                var j: JsonObject = advFile.reader().use { r ->
+            advancementFolder.listDirectoryEntries("*.json").forEach { advFile: Path ->
+                var advFileJson: JsonObject = advFile.reader().use { r ->
                     GSON.fromJson<JsonObject>(r, JsonObject::class.java)
                 }
 
-                for (advId in j.keySet()) {
-                    if (!j[advId]!!.isJsonObject) continue
+                // advFileJson.keySet() is a set of advancement ids **and** "DataVersion"
+                for (advId in advFileJson.keySet()) {
+                    if (!advFileJson[advId]!!.isJsonObject) continue
 
-                    val advJ: JsonObject = j[advId].asJsonObject
+                    // advJson["criteria"] contains all *obtained* criteria, and only obtained
+                    val advJson: JsonObject = advFileJson[advId].asJsonObject
                     val adv: AdvancementData = newAdv[advId] ?: continue
 
                     newItem[advId]?.let { itemAdvancement ->
-                        advJ["criteria"].asJsonObject.keySet().forEach { criteria ->
+                        advJson["criteria"].asJsonObject.keySet().forEach { criteria ->
                             itemAdvancement[criteria]?.done = true
                         }
                     }
 
                     if (!adv.done) {
-                        if (advJ["done"]?.asBoolean == true) {
+                        if (advJson["done"]?.asBoolean == true) {
                             // find latest criterion obtained
                             var max: Instant? = null
 
-                            advJ["criteria"].getAsJsonObject().asMap().forEach { criteria, time ->
+                            advJson["criteria"].getAsJsonObject().asMap().forEach { criteria, time ->
                                 val x =
                                     minecraftTimeFormatter.parse<Instant>(time.asString) { temporal: TemporalAccessor? ->
                                         Instant.from(temporal)
@@ -592,7 +603,7 @@ class Main : ModInitializer {
                             // set progress to 100%
                             adv.progress?.nom = adv.progress!!.den
                         } else {
-                            adv.progress?.nom = advJ["criteria"].getAsJsonObject().size()
+                            adv.progress?.nom = advJson["criteria"].getAsJsonObject().size()
                         }
                     }
                 }
@@ -787,6 +798,8 @@ class Main : ModInitializer {
         val timeFormatter = DateTimeFormatter.ofPattern("h:mm:ss a dd-MM-yyyy z Z").withLocale(Locale.of("en-US"))
             .withZone(ZoneId.systemDefault())
 
+        // this regex is commonly used and Pattern.compile takes some milliseconds to perform,
+        // so it's a static member now
         val getStatRegex = Pattern.compile("minecraft\\.(?<type>.+):minecraft.(?<name>.+)")
     }
 }

@@ -8,7 +8,7 @@ object Utils {
     /**
      * @param cell  cell range like "A1:A" (regex for cell must be \D+\d*:\D+)
      * @param index index, like 2
-     * @return cell range, like A3:A, or empty optional if cell doesn't match regex
+     * @return cell range, like A3:A, or null if cell doesn't match regex
      */
     fun moveRangeDownBy(cell: String, index: Int): String? {
         val m = rangeRegex.matcher(cell)
