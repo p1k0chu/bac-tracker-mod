@@ -10,6 +10,8 @@ import com.github.p1k0chu.mcmod.bac_tracker.settings.GlobalSettings
 import com.github.p1k0chu.mcmod.bac_tracker.settings.Settings
 import com.github.p1k0chu.mcmod.bac_tracker.utils.AdvancementProgressGetter
 import com.github.p1k0chu.mcmod.bac_tracker.utils.ComparingType
+import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getProfilePictureByUuid
+import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.moveRangeDownBy
 import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -786,35 +788,5 @@ class Main : ModInitializer {
             .withZone(ZoneId.systemDefault())
 
         val getStatRegex = Pattern.compile("minecraft\\.(?<type>.+):minecraft.(?<name>.+)")
-
-        /**
-         * @param player uuid of the player
-         * @return url of profile picture as excel =IMAGE(stuff)
-         */
-        fun getProfilePictureByUuid(player: String?): String? {
-            if (player == null) return null
-
-            return "=IMAGE(\"https://crafatar.com/avatars/$player?size=16&overlay\")"
-        }
-
-        /**
-         * @param cell  cell range like "A1:A" (regex for cell must be \D+\d*:\D+)
-         * @param index index, like 2
-         * @return cell range, like A3:A, or empty optional if cell doesn't match regex
-         */
-        fun moveRangeDownBy(cell: String, index: Int): String? {
-            val r = Pattern.compile("(?<sL>\\D+)(?<sN>\\d*):(?<eL>\\D+)", Pattern.CASE_INSENSITIVE)
-
-            val m = r.matcher(cell)
-            if (!m.find()) {
-                return null
-            }
-
-            val startLetter: String = m.group("sL") ?: return null
-            val endLetter: String = m.group("eL") ?: return startLetter
-            var startNumber: Int = m.group("sN").toIntOrNull() ?: 1
-
-            return "$startLetter${startNumber + index}:$endLetter"
-        }
     }
 }
