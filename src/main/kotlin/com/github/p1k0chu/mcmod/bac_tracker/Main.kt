@@ -176,6 +176,14 @@ class Main : ModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STOPPING.register { server: MinecraftServer ->
+            // "free" memory of unused objects
+            advancementsMap = null
+            statMap = null
+            scoreboardMap = null
+            itemMap = null
+
+            // keeping settings and sheetApi for 'executePendingUpdates'
+
             this.server = null
 
             this.state = State.NOT_INITIALIZED
