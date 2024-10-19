@@ -535,6 +535,10 @@ class Main : ModInitializer {
 
             val advancementFolder = server.getSavePath(WorldSavePath.ADVANCEMENTS)
 
+            val minecraftTimeFormatter: DateTimeFormatter =
+                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT)
+                    .withZone(ZoneId.systemDefault())
+
             advancementFolder.toFile().listFiles { file: File -> file.name.endsWith(".json") }?.forEach { advFile ->
                 var j: JsonObject = advFile.reader().use { r ->
                     GSON.fromJson<JsonObject>(r, JsonObject::class.java)
@@ -769,10 +773,6 @@ class Main : ModInitializer {
         val logger: Logger = LoggerFactory.getLogger(MOD_ID)
 
         val GSON: Gson = Gson().newBuilder().setPrettyPrinting().create()
-
-        val minecraftTimeFormatter: DateTimeFormatter =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT)
-                .withZone(ZoneId.systemDefault())
 
         val timeFormatter = DateTimeFormatter.ofPattern("h:mm:ss a dd-MM-yyyy z Z").withLocale(Locale.of("en-US"))
             .withZone(ZoneId.systemDefault())
