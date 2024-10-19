@@ -143,7 +143,7 @@ class Main : ModInitializer {
                     if (sData.value != bestValue) {
                         sData.value = bestValue
 
-                        val cell: String? = getCellByIndex(this.settings!!.statSheet.valueRange, sData.index)
+                        val cell: String? = moveRangeDownBy(this.settings!!.statSheet.valueRange, sData.index)
 
                         if (cell != null) {
                             val value = ValueRange().setValues(listOf(listOf(bestValue)))
@@ -159,7 +159,7 @@ class Main : ModInitializer {
                     if (bestPlayer != null && bestPlayer != sData.player) {
                         sData.player = bestPlayer
 
-                        val cell: String? = getCellByIndex(this.settings!!.statSheet.whoRange, sData.index)
+                        val cell: String? = moveRangeDownBy(this.settings!!.statSheet.whoRange, sData.index)
 
                         if (cell != null) {
                             val value = ValueRange().setValues(listOf(listOf(getProfilePictureByUuid(server.userCache?.findByName(sData.player)?.getOrNull()?.id?.toString()))))
@@ -202,7 +202,7 @@ class Main : ModInitializer {
                     itemData.done = value
 
                     val cell: String =
-                        getCellByIndex(this.settings!!.itemSheet.statusRange, itemData.index) ?: return@let
+                        moveRangeDownBy(this.settings!!.itemSheet.statusRange, itemData.index) ?: return@let
                     val value = ValueRange().setValues(listOf(listOf(value)))
                         .setRange("${this.settings!!.itemSheet.name}!$cell")
 
@@ -244,7 +244,7 @@ class Main : ModInitializer {
                 }
             }
 
-            getCellByIndex(this.settings!!.statSheet.valueRange, statData.index)?.let { cell: String ->
+            moveRangeDownBy(this.settings!!.statSheet.valueRange, statData.index)?.let { cell: String ->
                 synchronized(this.updatePool) {
                     this.updatePool.put(
                         "s: ${stat.name}",
@@ -253,7 +253,7 @@ class Main : ModInitializer {
                     )
                 }
             }
-            getCellByIndex(this.settings!!.statSheet.whoRange, statData.index)?.let { cell: String ->
+            moveRangeDownBy(this.settings!!.statSheet.whoRange, statData.index)?.let { cell: String ->
                 synchronized(this.updatePool) {
                     this.updatePool.put(
                         "sp: ${stat.name}",
@@ -322,7 +322,7 @@ class Main : ModInitializer {
             if (advancement.done != advancementProgress.isDone) {
                 advancement.done = advancementProgress.isDone
 
-                getCellByIndex(this.settings!!.advSheet.statusRange, advancement.index)?.let { cell: String ->
+                moveRangeDownBy(this.settings!!.advSheet.statusRange, advancement.index)?.let { cell: String ->
                     val value = ValueRange().setValues(listOf(listOf((advancementProgress.isDone))))
                         .setRange("${this.settings!!.advSheet.name}!$cell")
 
@@ -335,7 +335,7 @@ class Main : ModInitializer {
             if (advancement.progress != newProgress) {
                 advancement.progress = newProgress
 
-                getCellByIndex(this.settings!!.advSheet.progressRange, advancement.index)?.let { cell: String ->
+                moveRangeDownBy(this.settings!!.advSheet.progressRange, advancement.index)?.let { cell: String ->
                     val value = ValueRange().setValues(listOf(listOf(newProgress.toString())))
                         .setRange("${this.settings!!.advSheet.name}!$cell")
 
@@ -348,7 +348,7 @@ class Main : ModInitializer {
             if (advancement.doneTime != newInstant) {
                 advancement.doneTime = newInstant
 
-                getCellByIndex(this.settings!!.advSheet.whenRange, advancement.index)?.let { cell: String ->
+                moveRangeDownBy(this.settings!!.advSheet.whenRange, advancement.index)?.let { cell: String ->
                     newInstant?.let { ins: Instant ->
                         val value = ValueRange().setRange("${this.settings!!.advSheet.name}!$cell")
                             .setValues(listOf(listOf(timeFormatter.format(ins))))
@@ -363,7 +363,7 @@ class Main : ModInitializer {
             if (advancement.player != player.uuidAsString) {
                 advancement.player = player.uuidAsString
 
-                getCellByIndex(this.settings!!.advSheet.whoRange, advancement.index)?.let { cell: String ->
+                moveRangeDownBy(this.settings!!.advSheet.whoRange, advancement.index)?.let { cell: String ->
                     val value = ValueRange().setRange("${this.settings!!.advSheet.name}!$cell")
                         .setValues(listOf(listOf(getProfilePictureByUuid(player.uuidAsString))))
 
@@ -802,7 +802,7 @@ class Main : ModInitializer {
          * @param index index, like 2
          * @return cell range, like A3:A, or empty optional if cell doesn't match regex
          */
-        fun getCellByIndex(cell: String, index: Int): String? {
+        fun moveRangeDownBy(cell: String, index: Int): String? {
             val r = Pattern.compile("(?<sL>\\D+)(?<sN>\\d*):(?<eL>\\D+)", Pattern.CASE_INSENSITIVE)
 
             val m = r.matcher(cell)
@@ -811,8 +811,8 @@ class Main : ModInitializer {
             }
 
             val startLetter: String = m.group("sL") ?: return null
-            val endLetter: String = m.group("eL") ?: return null
-            var startNumber: Int = m.group("sN").toIntOrNull() ?: return null
+            val endLetter: String = m.group("eL") ?: return startLetter
+            var startNumber: Int = m.group("sN").toIntOrNull() ?: 1
 
             return "$startLetter${startNumber + index}:$endLetter"
         }
