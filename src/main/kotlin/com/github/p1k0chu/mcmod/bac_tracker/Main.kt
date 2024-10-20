@@ -366,12 +366,6 @@ class Main : ModInitializer {
             return
         }
 
-        synchronized(this.updatePool) {
-            if (this.updatePool.isEmpty()) {
-                return
-            }
-        }
-
         // execute api call in a different thread
         this.executor.execute {
             val updates: MutableList<ValueRange> = mutableListOf()
@@ -384,6 +378,9 @@ class Main : ModInitializer {
                     it.remove()
                 }
             }
+
+            if(updates.isEmpty())
+                return@execute
 
             val body = BatchUpdateValuesRequest()
                 .setValueInputOption("USER_ENTERED")
