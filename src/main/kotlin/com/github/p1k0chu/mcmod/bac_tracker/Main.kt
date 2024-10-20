@@ -278,9 +278,7 @@ class Main : ModInitializer {
         val newInstant: Instant? = apGetter.`bac_tracker_mod$getLatestProgressObtainDate`()
 
         // huge if statement to find out if new progression state is better than old one
-        if (!advancement.done && advancementProgress.isDone || (advancement.progress?.compareTo(newProgress)
-                ?: 0) < 0 || advancement.doneTime != null && newInstant?.isBefore(advancement.doneTime!!) == true
-        ) {
+        if (!advancement.done && advancementProgress.isDone || (advancement.progress?.compareTo(newProgress) ?: 0) < 0) {
             // construct api call body
             // check for every field that is changed, and update these on the sheet
             // status
