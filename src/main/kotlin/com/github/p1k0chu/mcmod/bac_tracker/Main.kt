@@ -7,7 +7,6 @@ import com.github.p1k0chu.mcmod.bac_tracker.data.StatData
 import com.github.p1k0chu.mcmod.bac_tracker.event.AdvancementUpdatedCallback
 import com.github.p1k0chu.mcmod.bac_tracker.event.ScoreboardUpdatedCallback
 import com.github.p1k0chu.mcmod.bac_tracker.event.StatUpdatedCallback
-import com.github.p1k0chu.mcmod.bac_tracker.settings.GlobalSettings
 import com.github.p1k0chu.mcmod.bac_tracker.settings.Settings
 import com.github.p1k0chu.mcmod.bac_tracker.utils.AdvancementProgressGetter
 import com.github.p1k0chu.mcmod.bac_tracker.utils.ComparingType
@@ -26,7 +25,6 @@ import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
-import kotlinx.io.IOException
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
@@ -52,8 +50,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.FileNotFoundException
-import java.io.FileReader
-import java.io.FileWriter
+import java.io.IOException
 import java.nio.file.Path
 import java.time.Instant
 import java.time.ZoneId
@@ -89,31 +86,9 @@ class Main : ModInitializer {
     private val executor: ExecutorService = Executors.newSingleThreadExecutor()
 
     // this bad boy is for loop of 10 seconds, to just stash all updates and send at once, every 10 seconds
-    private val scheduledExecutor: ScheduledExecutorService = Executors.newSingleThreadScheduledExecutor()
+    private var scheduledExecutor: ScheduledExecutorService? = null
 
     override fun onInitialize() {
-        val settingsFile = FabricLoader.getInstance().configDir.resolve(MOD_ID).resolve("settings.json")
-
-        val s: GlobalSettings = try {
-            FileReader(settingsFile.toFile()).use {
-                GSON.fromJson(it, GlobalSettings::class.java)
-            }
-        } catch (_: IOException) {
-            val x = GlobalSettings()
-
-            try {
-                FileWriter(settingsFile.toFile()).use {
-                    GSON.toJson(x, it)
-                }
-            } catch (e: IOException) {
-                logger.error("Failed to save settings file!", e)
-                throw e
-            }
-            x
-        }
-
-        scheduledExecutor.scheduleWithFixedDelay(this::executePendingUpdates, s.refreshDelay, s.refreshDelay, TimeUnit.SECONDS)
-
         ServerLifecycleEvents.SERVER_STARTED.register { server: MinecraftServer ->
             this.server = server
             executor.execute { this.reloadConfig(server) }
@@ -171,6 +146,10 @@ class Main : ModInitializer {
             // keeping settings and sheetApi for 'executePendingUpdates'
 
             this.server = null
+
+            // stop scheduled executor
+            scheduledExecutor?.shutdown()
+            scheduledExecutor = null
 
             this.state = State.NOT_INITIALIZED
         }
@@ -756,6 +735,13 @@ class Main : ModInitializer {
                 .batchUpdate(this.settings!!.sheetId, body).execute()
 
             this.state = State.INITIALIZED
+
+            // stop old schedule and
+            // start new schedule to execute updates every 10 seconds
+            scheduledExecutor?.shutdown()
+            scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
+            scheduledExecutor!!.scheduleWithFixedDelay(this::executePendingUpdates, settings!!.updateDelaySeconds, settings!!.updateDelaySeconds, TimeUnit.SECONDS)
+
             return true
         } catch (e: Exception) {
             logger.error(e.message, e)
