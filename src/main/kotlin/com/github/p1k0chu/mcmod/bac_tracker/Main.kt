@@ -5,6 +5,7 @@ import com.github.p1k0chu.mcmod.bac_tracker.data.ItemData
 import com.github.p1k0chu.mcmod.bac_tracker.data.ScoreboardData
 import com.github.p1k0chu.mcmod.bac_tracker.data.StatData
 import com.github.p1k0chu.mcmod.bac_tracker.event.AdvancementUpdatedCallback
+import com.github.p1k0chu.mcmod.bac_tracker.event.ScoreboardUpdatedCallback
 import com.github.p1k0chu.mcmod.bac_tracker.event.StatUpdatedCallback
 import com.github.p1k0chu.mcmod.bac_tracker.settings.GlobalSettings
 import com.github.p1k0chu.mcmod.bac_tracker.settings.Settings
@@ -33,6 +34,8 @@ import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.advancement.AdvancementEntry
 import net.minecraft.command.CommandRegistryAccess
 import net.minecraft.entity.player.PlayerEntity
+import net.minecraft.scoreboard.ScoreboardObjective
+import net.minecraft.scoreboard.ScoreboardScore
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandManager.RegistrationEnvironment
@@ -114,67 +117,45 @@ class Main : ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register { server: MinecraftServer ->
             this.server = server
             executor.execute { this.reloadConfig(server) }
+        }
 
-            val sb = server.scoreboard
+        ScoreboardUpdatedCallback.SCORE_UPDATED.register { owner: String, objective: ScoreboardObjective, score: ScoreboardScore ->
+            // action on scoreboard update
+            if (this.settings?.scoreboardEnabled != true) {
+                return@register
+            }
 
-            sb.addUpdateListener {
-                // action on scoreboard update
-                if (this.settings?.scoreboardEnabled != true) {
-                    return@addUpdateListener
-                }
+            val sData: ScoreboardData = this.scoreboardMap?.get(objective.name) ?: return@register
 
-                // iterate over every scoreboard, since we don't know which one changed
-                for (objective in sb.objectives) {
-                    val sData: ScoreboardData = this.scoreboardMap?.get(objective.name) ?: continue
+            if (sData.value >= score.score)
+                return@register
 
-                    var bestValue = 0
-                    var bestPlayer: String? = null
+            sData.value = score.score
 
-                    for (entry in sb.getScoreboardEntries(objective)) {
-                        val value = entry.value()
+            // sync with the sheet
+            val cell: String = moveRangeDownBy(this.settings!!.statSheet.valueRange, sData.index)!!
+            val value = ValueRange().setValues(listOf(listOf(sData.value)))
+                .setRange("${this.settings!!.itemSheet.name}!$cell")
 
-                        when (sData.type) {
-                            ComparingType.SUM ->
-                                if (value > bestValue) {
-                                    bestValue = value
-                                    bestPlayer = entry.owner()
-                                }
+            synchronized(this.updatePool) {
+                this.updatePool.put("scv: ${objective.name}", value)
+            }
 
-                            ComparingType.MAX -> bestValue += value
-                        }
-                    }
 
-                    // value
-                    if (sData.value != bestValue) {
-                        sData.value = bestValue
+            // only update player if it changed
+            // (because updating it on the sheet is very costly)
+            if (owner != sData.player) {
+                sData.player = owner
 
-                        val cell: String? = moveRangeDownBy(this.settings!!.statSheet.valueRange, sData.index)
+                val cell: String? = moveRangeDownBy(this.settings!!.statSheet.whoRange, sData.index)
 
-                        if (cell != null) {
-                            val value = ValueRange().setValues(listOf(listOf(bestValue)))
-                                .setRange("${this.settings!!.itemSheet.name}!$cell")
+                if (cell != null) {
+                    val value = ValueRange().setValues(listOf(listOf(getProfilePictureByUuid(sData.player))))
+                        .setRange("${this.settings!!.statSheet.name}!$cell")
 
-                            synchronized(this.updatePool) {
-                                this.updatePool.put("scv: ${objective.name}", value)
-                            }
-                        }
-                    }
-
-                    // player
-                    if (bestPlayer != null && bestPlayer != sData.player) {
-                        sData.player = bestPlayer
-
-                        val cell: String? = moveRangeDownBy(this.settings!!.statSheet.whoRange, sData.index)
-
-                        if (cell != null) {
-                            val value = ValueRange().setValues(listOf(listOf(getProfilePictureByUuid(server.userCache?.findByName(sData.player)?.getOrNull()?.id?.toString()))))
-                                .setRange("${this.settings!!.statSheet.name}!$cell")
-
-                            synchronized(this.updatePool) {
-                                // scp is scoreboard player, trust me
-                                this.updatePool.put("scp: ${objective.name}", value)
-                            }
-                        }
+                    synchronized(this.updatePool) {
+                        // scp is scoreboard player, trust me
+                        this.updatePool.put("scp: ${objective.name}", value)
                     }
                 }
             }
@@ -696,7 +677,7 @@ class Main : ModInitializer {
                     }
 
                     var bestValue = 0
-                    var bestPlayer: String? = null
+                    var bestPlayer: String? = null // as ign
 
                     for (entry in sb.getScoreboardEntries(objective)) {
                         val value = entry.value()
@@ -711,6 +692,10 @@ class Main : ModInitializer {
                         } else {
                             logger.warn("Incorrect comparison type for scoreboard \"{}\": \"{}\"", name, comp)
                         }
+                    }
+
+                    if(bestPlayer != null) {
+                        bestPlayer = server.userCache?.findByName(bestPlayer)?.getOrNull()?.id?.toString()
                     }
 
                     newSb.put(name, ScoreboardData(comp, bestValue, bestPlayer, i))

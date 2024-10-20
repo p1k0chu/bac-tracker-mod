@@ -3,10 +3,11 @@
 	"package": "com.github.p1k0chu.mcmod.bac_tracker.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"PlayerAdvancementTrackerMixin",
-		"StatHandlerMixin",
-		"AdvancementProgressMixin"
-	],
+        "AdvancementProgressMixin",
+        "PlayerAdvancementTrackerMixin",
+        "ServerScoreboardMixin",
+        "StatHandlerMixin"
+    ],
 	"injectors": {
 		"defaultRequire": 1
 	}
