@@ -1,10 +1,13 @@
 {
 	"required": true,
-	"package": "com.github.p1k0chu.mixin",
+	"package": "com.github.p1k0chu.mcmod.bac_tracker.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-
-	],
+        "AdvancementProgressMixin",
+        "PlayerAdvancementTrackerMixin",
+        "ScoreboardMixin",
+        "StatHandlerMixin"
+    ],
 	"injectors": {
 		"defaultRequire": 1
 	}

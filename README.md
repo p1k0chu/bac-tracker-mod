@@ -1,7 +1,12 @@
 <h1>Bac Tracker</h1>
-Advancement tracker for <a href="https://www.planetminecraft.com/data-pack/blazeandcave-s-advancements-pack-1-12/">Blazes and Caves Advancement Data pack</a>.<br>
-Inspired by <a href="https://github.com/TheTalkingMime/bac-tracker">TheTalkingMime/bac-tracker</a>, reused some .csv files from this repo.<br>
-Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">template</a> is also created by Mime
+Advancement tracker for <a href="https://bit.ly/3u9BXTr">Blazes and Caves Advancement Data pack</a>.<br>
+Inspired by <a href="https://github.com/TheTalkingMime/bac-tracker">TheTalkingMime/bac-tracker</a><br>
+Tracker template is originally made by TheTalkingMime and tjthings
+
+Latest tracker <a href="https://docs.google.com/spreadsheets/d/1p0Nl61avCxvLxlIrD6ZAeoyIkEDiTf7C3ZIQTC-Ivew/edit?usp=sharing">template</a> for use with BACAP<br>
+You will also find sheet downloads in releases.
+
+You can use this tracker with any other advancement data pack, or with vanilla game, but you would have to make your own sheet with all advancements you need to track
 
 <h1>Installation process</h1>
 <ol>
@@ -16,7 +21,8 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
             <li>Put the mods in your mods folder.</li>
         </ul>
     </li>
-    <li>Create an account on <a href="https://console.cloud.google.com">Google Cloud Console.</a>
+    <li>Create an account on <a href="https://console.cloud.google.com">Google Cloud Console.</a><br>
+Google will ask you for credit card information, but they won't charge you unless you upgrade your account, and everything you will actually use is free
         <ol>
             <li>Create an account first.</li>
             <li><a href="https://console.cloud.google.com/projectcreate">Create</a> new project.</li>
@@ -31,14 +37,15 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
             <li>Go to KEYS</li>
             <li>Create new JSON key
                 <ul>
-                    <li>You will download credentials JSON file. <b>Keep it. Do not share it</b></li>
+                    <li>You will download credentials JSON file. <b>Keep it. Do not share it</b><br>
+If you leak your key accidentally, you can reset it and create a new one</li>
                 </ul>
             </li>
         </ol>
     </li>
-    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit">1.21 Template</a> to your google disk
+    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1p0Nl61avCxvLxlIrD6ZAeoyIkEDiTf7C3ZIQTC-Ivew/edit?usp=sharing">latest template</a> to your Google Drive<br>
+This is the latest version of the template. if you want to use earlier version you can download it from releases page and upload to Google Drive.
         <ul>
-            <li>Copy of template will be in releases for every version, for future generations (you can use this if you want to play on this version in future)</li>
             <li>Copy the id of your sheet. It's in the link of your sheet (address bar), https://docs.google.com/spreadsheets/d/&lt;ID_HERE&gt;/edit<br>
                 Example link: https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit<br>
                 Example id: 1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI
@@ -48,10 +55,8 @@ Tracker <a href="https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaT
     </li>
     <li>Run Minecraft once and open your world. This will create <i>.minecraft/config</i> folder as well as <i>settings.json</i> inside your world folder
         <ul>
-            <li>(Optional) Close minecraft</li>
-            <li>You will see exact file paths in logs you need to edit</li>
-            <li>Put your credentials you downloaded at the path you get in logs</li>
-            <li>Open settings.json and paste the sheet id in it</li>
+            <li>Put your credentials in <code>.minecraft/config/bac-tracker-mod</code> and rename to credentials.json</li>
+            <li>Open <code>your_world_folder/tracker/settings.json</code> and paste the sheet id in it</li>
             <li>If you didn't close mc you can run <code>/tracker reload</code> to reload settings</li>
         </ul>
     </li>
