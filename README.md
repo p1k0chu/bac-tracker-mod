@@ -56,7 +56,14 @@ This is the latest version of the template. if you want to use earlier version y
     <li>Run Minecraft once and open your world. This will create <i>.minecraft/config</i> folder as well as <i>settings.json</i> inside your world folder
         <ul>
             <li>Put your credentials in <code>.minecraft/config/bac-tracker-mod</code> and rename to credentials.json</li>
-            <li>Open <code>your_world_folder/tracker/settings.json</code> and paste the sheet id in it</li>
+            <li>
+                Open <code>your_world_folder/tracker/settings.json</code> and paste the sheet id in "spreadsheet-id" field
+                <ul>
+                <li>
+                    If settings file does not exist, make sure to run <code>/tracker reload</code> command, it must generate a settings template for you.
+                </li>
+                </ul>
+            </li>
             <li>If you didn't close mc you can run <code>/tracker reload</code> to reload settings</li>
         </ul>
     </li>
