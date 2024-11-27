@@ -150,14 +150,7 @@ object Main : ModInitializer {
             )
         }
 
-        ServerLifecycleEvents.SERVER_STOPPING.register { server ->
-            val settingsPerWorldFolder = server?.getSavePath(WorldSavePath.ROOT)?.resolve("tracker")
-            val settingsFile = settingsPerWorldFolder?.resolve("settings.json")
-
-            settingsFile?.toFile()?.writer()?.use { w ->
-                GSON.toJson(settings, w)
-            }
-
+        ServerLifecycleEvents.SERVER_STOPPING.register { _ ->
             // "free" memory of unused objects
             advMap = null
             statMap = null
