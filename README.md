@@ -43,8 +43,8 @@ If you leak your key accidentally, you can reset it and create a new one</li>
             </li>
         </ol>
     </li>
-    <li>Copy <a href="https://docs.google.com/spreadsheets/d/1p0Nl61avCxvLxlIrD6ZAeoyIkEDiTf7C3ZIQTC-Ivew/edit?usp=sharing">latest template</a> to your Google Drive<br>
-This is the latest version of the template. if you want to use earlier version you can find links on release page and copy to your Google Drive.
+    <li>Copy <a href="https://drive.google.com/drive/folders/1kL45IXPLcKI9UIc31At0k-bHXxmtmSry?usp=sharing">latest template</a> to your Google Drive<br>
+This is a folder with all available templates.
         <ul>
             <li>Copy the id of your sheet. It's in the link of your sheet (address bar), https://docs.google.com/spreadsheets/d/&lt;ID_HERE&gt;/edit<br>
                 Example link: https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit<br>
