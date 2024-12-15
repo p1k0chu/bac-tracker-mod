@@ -421,8 +421,6 @@ object Main : ModInitializer {
             makeSureDirectoryExists(settingsGlobalFolder)
             makeSureDirectoryExists(settingsPerWorldFolder)
 
-            this.sheetApi = buildSheet(credPath)
-
             if (!settingsFile.toFile().exists()) {
                 // write a default config file for easy editing
                 settingsFile.toFile().writer().use { w ->
@@ -434,6 +432,8 @@ object Main : ModInitializer {
                     }"
                 )
             }
+
+            this.sheetApi = buildSheet(credPath)
 
             this.settings = settingsFile.toFile().reader().use { r ->
                 GSON.fromJson(r, Settings::class.java)
