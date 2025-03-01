@@ -164,6 +164,8 @@ object Main : ModInitializer {
             scheduledExecutor?.shutdown()
             scheduledExecutor = null
 
+            executor.shutdown()
+
             this.state = State.NOT_INITIALIZED
         }
 
