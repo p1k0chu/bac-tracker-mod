@@ -150,7 +150,7 @@ object Main : ModInitializer {
             )
         }
 
-        ServerLifecycleEvents.SERVER_STOPPING.register { _ ->
+        ServerLifecycleEvents.SERVER_STOPPING.register { server: MinecraftServer ->
             // "free" memory of unused objects
             advMap = null
             statMap = null
@@ -163,6 +163,10 @@ object Main : ModInitializer {
 
             scheduledExecutor?.shutdown()
             scheduledExecutor = null
+
+            if(server.isDedicated){
+                executor.shutdown()
+            }
 
             this.state = State.NOT_INITIALIZED
         }
