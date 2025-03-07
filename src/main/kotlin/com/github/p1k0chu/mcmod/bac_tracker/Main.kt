@@ -16,6 +16,7 @@ import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getProfilePictureByUuid
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.makeSureDirectoryExists
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.moveRangeDownBy
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.singleColumnValueRange
+import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getIdOrUrl
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesResponse
@@ -442,6 +443,9 @@ object Main : ModInitializer {
             this.settings = settingsFile.toFile().reader().use { r ->
                 GSON.fromJson(r, Settings::class.java)
             }
+
+            // if url, convert to id
+            this.settings!!.sheetId = getIdOrUrl(this.settings!!.sheetId)
 
             // load items
             val (itemIds, itemAdvIds) = batchGet(
