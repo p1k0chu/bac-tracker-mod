@@ -46,18 +46,15 @@ If you leak your key accidentally, you can reset it and create a new one</li>
     <li>Copy <a href="https://drive.google.com/drive/folders/1kL45IXPLcKI9UIc31At0k-bHXxmtmSry?usp=sharing">latest template</a> to your Google Drive<br>
 This is a folder with all available templates.
         <ul>
-            <li>Copy the id of your sheet. It's in the link of your sheet (address bar), https://docs.google.com/spreadsheets/d/&lt;ID_HERE&gt;/edit<br>
-                Example link: https://docs.google.com/spreadsheets/d/1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI/edit<br>
-                Example id: 1Gyp1atdQ7QLEWRHBQ2AQFaTcg38jzZFPvaCOE4OeJhI
-            </li>
             <li>Copy "client-email" from credentials file and share your new sheet with this email, with editor permissions</li>
         </ul>
     </li>
     <li>Run Minecraft once and open your world. This will create <i>.minecraft/config</i> folder as well as <i>settings.json</i> inside your world folder
         <ul>
             <li>Put your credentials in <code>.minecraft/config/bac-tracker-mod</code> and rename to credentials.json</li>
+            <li>Copy the url of your sheet.</li>
             <li>
-                Open <code>your_world_folder/tracker/settings.json</code> and paste the sheet id in "spreadsheet-id" field
+                Open <code>your_world_folder/tracker/settings.json</code> and paste the url in "spreadsheet-id" field
                 <ul>
                 <li>
                     If settings file does not exist, make sure to run <code>/tracker reload</code> command, it must generate a settings template for you.
@@ -67,7 +64,7 @@ This is a folder with all available templates.
             <li>If you didn't close mc you can run <code>/tracker reload</code> to reload settings</li>
         </ul>
     </li>
-    <li>Done. Report issues on this repo's issue tracker</li>
+    <li>Done. Report issues on this repo's issue tracker (please)</li>
 </ol>
 
 
