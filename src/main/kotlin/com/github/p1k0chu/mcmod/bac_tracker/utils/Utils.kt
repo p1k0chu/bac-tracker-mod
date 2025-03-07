@@ -22,7 +22,6 @@ import kotlin.collections.firstOrNull
 
 object Utils {
     private val rangeRegex: Pattern = Pattern.compile("(?<sL>\\D+)(?<sN>\\d*):(?<eL>\\D+)", Pattern.CASE_INSENSITIVE)
-
     private val googleSheetUrlRegex = Pattern.compile("https:\\/\\/docs\\.google\\.com\\/spreadsheets\\/d\\/(?<id>.*)\\/edit.*")
 
     // used for parsing from advancement json files
@@ -40,7 +39,10 @@ object Utils {
      * @param index index, like 2
      * @return cell range, like A3:A, or null if cell doesn't match regex
      */
-    fun moveRangeDownBy(cell: String, index: Int): String? {
+    fun moveRangeDownBy(
+        cell: String,
+        index: Int,
+    ): String? {
         val m = rangeRegex.matcher(cell)
         if (!m.find()) {
             return null
@@ -64,23 +66,26 @@ object Utils {
     }
 
     fun buildSheet(credPath: Path): Sheets? {
-        val email = credPath.toFile().reader().use { r ->
-            val j: JsonObject = GSON.fromJson(r, JsonObject::class.java)
+        val email =
+            credPath.toFile().reader().use { r ->
+                val j: JsonObject = GSON.fromJson(r, JsonObject::class.java)
 
-            j.get("client_email").asString
-        }
+                j.get("client_email").asString
+            }
 
-        return Sheets.Builder(
-            NetHttpTransport(),
-            GsonFactory.getDefaultInstance(),
-            HttpCredentialsAdapter(
-                credPath.toFile().inputStream()
-                    .use { stream -> GoogleCredentials.fromStream(stream) }
-                    .createScoped(mutableSetOf<String?>(SheetsScopes.SPREADSHEETS))
-                    .createDelegated(email)
-            )
-        )
-            .setApplicationName(APP_NAME)
+        return Sheets
+            .Builder(
+                NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                HttpCredentialsAdapter(
+                    credPath
+                        .toFile()
+                        .inputStream()
+                        .use { stream -> GoogleCredentials.fromStream(stream) }
+                        .createScoped(mutableSetOf<String?>(SheetsScopes.SPREADSHEETS))
+                        .createDelegated(email),
+                ),
+            ).setApplicationName(APP_NAME)
             .build()
     }
 
@@ -94,15 +99,15 @@ object Utils {
         }
     }
 
-    /** @param advJson advancement json object
-     */
+    /** @param advJson advancement json object */
     fun findLatestCriteriaObtainedDate(advJson: JsonObject): Instant? {
         var max: Instant? = null
 
         advJson["criteria"].getAsJsonObject().asMap().forEach { (_, time) ->
-            val x = minecraftTimeFormatter.parse(time.asString) { temporal: TemporalAccessor? ->
-                Instant.from(temporal)
-            }
+            val x =
+                minecraftTimeFormatter.parse(time.asString) { temporal: TemporalAccessor? ->
+                    Instant.from(temporal)
+                }
 
             if (max?.isBefore(x) != false) {
                 max = x
@@ -112,10 +117,7 @@ object Utils {
     }
 
     /** single column value range will be just list of lists with one element.
-     * filters out null and maps it to be 1-dimensional list
-     */
+     * filters out null and maps it to be 1-dimensional list */
     @Suppress("UsePropertyAccessSyntax") // IDK why but using property access breaks everything
-    fun singleColumnValueRange(range: ValueRange): List<String> {
-        return range.getValues().mapNotNull { it?.firstOrNull()?.toString() }
-    }
+    fun singleColumnValueRange(range: ValueRange): List<String> = range.getValues().mapNotNull { it?.firstOrNull()?.toString() }
 }
