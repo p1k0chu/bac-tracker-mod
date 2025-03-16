@@ -25,7 +25,7 @@ object Utils {
     private val googleSheetUrlRegex = Pattern.compile("https:\\/\\/docs\\.google\\.com\\/spreadsheets\\/d\\/(?<id>.*)\\/edit.*")
 
     // used for parsing from advancement json files
-    private val minecraftTimeFormatter: DateTimeFormatter =
+    val minecraftTimeFormatter: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT).withZone(ZoneId.systemDefault())
 
     fun getIdOrUrl(str: String): String {
