@@ -1,6 +1,11 @@
 package com.github.p1k0chu.mcmod.bac_tracker.utils
 
+import com.google.api.client.json.JsonString
 import com.google.api.services.sheets.v4.model.ValueRange
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonPrimitive
+import java.time.Instant
 import kotlin.test.*
 
 class UtilsTest {
@@ -47,5 +52,27 @@ class UtilsTest {
         valueRange.setValues(someData)
 
         assertEquals(listOf("1", "2", "3"), Utils.singleColumnValueRange(valueRange))
+    }
+
+    @Test
+    fun findLatestCriteriaObtainedDate() {
+        val someOldDate = "2000-01-01 00:00:00 +0000"
+        val someNewDate = "2025-01-01 00:00:00 +0000"
+
+        val criteria = JsonObject()
+        criteria.add("old", JsonPrimitive(someOldDate))
+        criteria.add("old2", JsonPrimitive(someOldDate))
+        criteria.add("old3", JsonPrimitive(someOldDate))
+        criteria.add("old4", JsonPrimitive(someOldDate))
+
+        criteria.add("new", JsonPrimitive(someNewDate))
+
+        val jsonObject = JsonObject()
+        jsonObject.add("criteria", criteria)
+
+        assertEquals(
+            Instant.from(Utils.minecraftTimeFormatter.parse(someNewDate)),
+            Utils.findLatestCriteriaObtainedDate(jsonObject)
+        )
     }
 }
