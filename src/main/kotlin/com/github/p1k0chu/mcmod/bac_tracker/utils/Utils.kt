@@ -30,8 +30,11 @@ object Utils {
 
     fun getIdOrUrl(str: String): String {
         val m = googleSheetUrlRegex.matcher(str)
-        m.find()
-        return m.group("id") ?: str
+        return if (m.find()) {
+            m.group("id")
+        } else {
+            str
+        }
     }
 
     /**
