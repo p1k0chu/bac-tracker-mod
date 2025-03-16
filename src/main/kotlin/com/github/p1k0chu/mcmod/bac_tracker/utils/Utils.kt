@@ -121,6 +121,5 @@ object Utils {
 
     /** single column value range will be just list of lists with one element.
      * filters out null and maps it to be 1-dimensional list */
-    @Suppress("UsePropertyAccessSyntax") // IDK why but using property access breaks everything
     fun singleColumnValueRange(range: ValueRange): List<String> = range.getValues().mapNotNull { it?.firstOrNull()?.toString() }
 }
