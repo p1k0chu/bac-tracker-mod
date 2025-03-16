@@ -22,7 +22,7 @@ import kotlin.collections.firstOrNull
 
 object Utils {
     private val rangeRegex: Pattern = Pattern.compile("(?<sL>\\D+)(?<sN>\\d*):(?<eL>\\D+)", Pattern.CASE_INSENSITIVE)
-    private val googleSheetUrlRegex = Pattern.compile("https:\\/\\/docs\\.google\\.com\\/spreadsheets\\/d\\/(?<id>.*)\\/edit.*")
+    private val googleSheetUrlRegex = Pattern.compile("https://docs\\.google\\.com/spreadsheets/d/(?<id>.*)/edit.*")
 
     // used for parsing from advancement json files
     private val minecraftTimeFormatter: DateTimeFormatter =
