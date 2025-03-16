@@ -1,10 +1,9 @@
-package com.github.p1k0chu.mcmod.bac_tracker
+package com.github.p1k0chu.mcmod.bac_tracker.utils
 
-import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-class MainTest {
+class UtilsTest {
     @Test
     fun testMoveRangeDownBy() {
         assertEquals("A70:B", Utils.moveRangeDownBy("A69:B", 1))
