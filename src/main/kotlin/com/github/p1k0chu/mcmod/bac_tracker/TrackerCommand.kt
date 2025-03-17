@@ -11,6 +11,7 @@ import net.minecraft.text.HoverEvent
 import net.minecraft.text.Style
 import net.minecraft.text.Text
 import net.minecraft.util.Colors
+import java.net.URI
 
 object TrackerCommand {
     @Suppress("UNUSED_PARAMETER")
@@ -37,10 +38,8 @@ object TrackerCommand {
 
         context.source?.sendFeedback({
             Text.literal(url).styled { style: Style? ->
-                style?.withClickEvent(ClickEvent(ClickEvent.Action.OPEN_URL, url))?.withHoverEvent(
-                    HoverEvent(
-                        HoverEvent.Action.SHOW_TEXT, Text.of("Click to open url")
-                    )
+                style?.withClickEvent(ClickEvent.OpenUrl(URI.create(url)))?.withHoverEvent(
+                    HoverEvent.ShowText(Text.of("Click to open url"))
                 )?.withItalic(true)?.withUnderline(true)?.withColor(Colors.LIGHT_GRAY)
             }
         }, false)
