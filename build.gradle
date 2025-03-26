@@ -87,7 +87,7 @@ modrinth {
 
 	versionNumber = "${mod_version}"
 	versionType = "release" // `release`, `beta` or `alpha`
-	gameVersions = ["1.21", "1.21.1", "1.21.2", "1.21.3"]
+	gameVersions = ["${minecraft_version}"]
 
 	uploadFile = remapJar
 	loaders = ["fabric"]
