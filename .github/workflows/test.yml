@@ -4,6 +4,11 @@
 # against bad commits.
 
 name: test
+
+permissions:
+  checks: write
+  pull-requests: write
+
 on:
   push:
     branches: ["main"]
