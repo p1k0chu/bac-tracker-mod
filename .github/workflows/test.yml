@@ -3,34 +3,43 @@
 # certain platforms or Java versions, and provides a first line of defence
 # against bad commits.
 
-name: build
-on: [pull_request, push]
+name: test
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
 
 jobs:
   build:
-    strategy:
-      matrix:
-        # Use these Java versions
-        java: [
-          21,    # Current Java LTS
-        ]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-      - name: validate gradle wrapper
-        uses: gradle/wrapper-validation-action@v2
-      - name: setup jdk ${{ matrix.java }}
+        
+      - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: ${{ matrix.java }}
+          java-version: 21
           distribution: 'microsoft'
+          
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
+      
       - name: build
-        run: ./gradlew build
+        run: ./gradlew build test
+     
+      - name: Publish Test Report
+        uses: mikepenz/action-junit-report@v5
+        if: success() || failure() # always run even if the previous step fails
+        with:
+          report_paths: '**/build/test-results/test/TEST-*.xml'
+      
       - name: capture build artifacts
-        if: ${{ matrix.java == '21' }} # Only upload artifacts built from latest java
         uses: actions/upload-artifact@v4
         with:
           name: Artifacts
