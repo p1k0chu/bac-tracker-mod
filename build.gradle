@@ -82,12 +82,14 @@ jar {
 }
 
 modrinth {
+	List<String> supported_minecraft_version = project.supported_minecraft_version_list.split(",")
+
 	token = System.getenv("MODRINTH_TOKEN")
 	projectId = "ELPoIqXP" // This can be the project ID or the slug. Either will work!
 
 	versionNumber = "${mod_version}"
 	versionType = "release" // `release`, `beta` or `alpha`
-	gameVersions = ["${minecraft_version}"]
+	gameVersions = supported_minecraft_version
 
 	uploadFile = remapJar
 	loaders = ["fabric"]
