@@ -60,6 +60,8 @@ tasks.processResources {
 	filesMatching("fabric.mod.json") {
 		expand(
 			"version" to mod_version,
+			"loader_version" to loader_version,
+			"minecraft_version" to minecraft_version
 		)
 	}
 }
