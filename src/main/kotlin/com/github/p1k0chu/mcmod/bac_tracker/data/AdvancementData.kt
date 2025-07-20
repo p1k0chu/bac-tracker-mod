@@ -7,7 +7,8 @@ class AdvancementData(
     var player: String? = null,
     var doneTime: Instant? = null,
     val index: Int,
-    var progress: Progress? = null
+    var progress: Progress? = null,
+    var incomplete: List<String> = listOf()
 ) {
     class Progress(nominator: Int, denominator: Int) {
         var nom: Int = nominator

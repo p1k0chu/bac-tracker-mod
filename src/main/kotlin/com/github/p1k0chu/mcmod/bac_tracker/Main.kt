@@ -529,6 +529,15 @@ object Main : ModInitializer {
                         this.advMap?.get(i)?.player?.let(::getProfilePictureByUuid)
                     )
                 }),
+            // incomplete criteria
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.incompleteCriteriaRange}")
+                .setValues(advIds.map { i ->
+                    listOf(
+                        this.advMap?.get(i)
+                            ?.incomplete
+                            ?.joinToString()
+                    )
+                }),
 
             // stats and scoreboards
             // stat value
@@ -696,17 +705,34 @@ object Main : ModInitializer {
     private fun updateAdvancement(advId: String, advJson: JsonObject, playerUUID: String) {
         val adv: AdvancementData = this.advMap?.get(advId) ?: return
 
+        val completedCriteria = advJson["criteria"].getAsJsonObject()
+            .keySet()
 
         if (!adv.done) {
+            adv.progress?.let { progress ->
+                progress.nom = completedCriteria.size
+
+                server!!.advancementLoader.get(Identifier.of(advId))?.let { advEntry ->
+                    progress.den = advEntry.value.requirements.length
+                }
+            }
+
             if (advJson["done"]?.asBoolean == true) {
                 adv.done = true
                 adv.player = playerUUID
                 adv.doneTime = findLatestCriteriaObtainedDate(advJson)
-
-                // set progress to 100%
-                adv.progress?.nom = adv.progress!!.den
             } else {
-                adv.progress?.nom = advJson["criteria"].getAsJsonObject().size()
+                server!!.advancementLoader.get(Identifier.of(advId))?.let { advancementEntry ->
+                    adv.incomplete = advancementEntry.value
+                        .criteria
+                        .mapNotNull { criterion ->
+                            if (completedCriteria.contains(criterion.key)) {
+                                criterion.key
+                            } else {
+                                null
+                            }
+                        }
+                }
             }
         }
     }
