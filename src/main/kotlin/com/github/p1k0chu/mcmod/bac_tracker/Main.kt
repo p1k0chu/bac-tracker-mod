@@ -310,7 +310,7 @@ object Main : ModInitializer {
     private fun putUpdateInPool(sheetName: String, range: String, index: Int, value: Any?) {
         moveRangeDownBy(range, index)?.let { cell: String ->
             val valueRange = ValueRange()
-                .setValues(listOf(listOf((value))))
+                .setValues(listOf(listOf(value)))
                 .setRange("${sheetName}!$cell")
 
             synchronized(this.updatePool) {
