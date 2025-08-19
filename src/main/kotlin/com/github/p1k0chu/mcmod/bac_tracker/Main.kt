@@ -18,6 +18,7 @@ import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.makeSureDirectoryExists
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.moveRangeDownBy
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.parseSheetUrl
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.singleColumnValueRange
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesResponse
@@ -788,33 +789,53 @@ object Main : ModInitializer {
             .setIncludeValuesInResponse(false)
             .setData(valueRanges)
 
-        return sheetApi.spreadsheets()
-            .values()
-            .batchUpdate(settings.sheetId, body)
-            .execute()
+        try {
+            return sheetApi.spreadsheets()
+                .values()
+                .batchUpdate(settings.sheetId, body)
+                .execute()
+        } catch (e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
+        }
     }
 
     private fun batchGet(cellRanges: List<String>): List<List<String>> {
         val settings = checkNotNull(this.settings) { "`settings` is null. this should never happen" }
         val sheetApi = checkNotNull(this.sheetApi) { "`sheetApi` is null. this should never happen" }
 
-        return sheetApi
-            .spreadsheets().values()
-            .batchGet(settings.sheetId)
-            .setRanges(cellRanges)
-            .execute()
-            .valueRanges
-            .map(::singleColumnValueRange)
+        try {
+            return sheetApi
+                .spreadsheets().values()
+                .batchGet(settings.sheetId)
+                .setRanges(cellRanges)
+                .execute()
+                .valueRanges
+                .map(::singleColumnValueRange)
+        } catch (e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
+        }
     }
 
     private fun getValueRange(cellRange: String): ValueRange {
         val settings = checkNotNull(this.settings) { "`settings` is null. this should never happen" }
         val sheetApi = checkNotNull(this.sheetApi) { "`sheetApi` is null. this should never happen" }
 
-        return sheetApi
-            .spreadsheets().values()
-            .get(settings.sheetId, cellRange)
-            .execute()
+        try {
+            return sheetApi
+                .spreadsheets().values()
+                .get(settings.sheetId, cellRange)
+                .execute()
+        } catch(e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
+        }
+    }
+
+    private fun handleGoogleJsonResponseException(exc: GoogleJsonResponseException): Nothing {
+        when (exc.statusCode) {
+            404 -> throw RuntimeException("Sheet with id \"${settings?.sheetId}\" not found", exc)
+            403 -> throw RuntimeException("No access to sheet with id \"${settings?.sheetId}\"", exc)
+            else -> throw RuntimeException("Spreadsheet api error!", exc)
+        }
     }
 
     enum class State {
