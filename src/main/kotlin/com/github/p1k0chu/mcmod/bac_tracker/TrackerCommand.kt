@@ -23,7 +23,7 @@ object TrackerCommand {
     ) {
         dispatcher.register(CommandManager.literal("tracker")
             .then(CommandManager.literal("reload")
-                .requires { source: ServerCommandSource -> source.hasPermissionLevel(3) || source.server.isHost(source.player?.gameProfile) }
+                .requires { source: ServerCommandSource -> source.hasPermissionLevel(3) || source.server.isHost(source.player?.playerConfigEntry) }
                 .executes(::reloadCommand))
             .then(CommandManager.literal("sheet")
                 .executes(::sheetCommand))

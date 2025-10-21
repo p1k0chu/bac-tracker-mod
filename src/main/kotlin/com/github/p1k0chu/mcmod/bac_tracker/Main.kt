@@ -550,7 +550,7 @@ object Main : ModInitializer {
             ValueRange().setRange("${settings.statSheet.name}!${settings.statSheet.whoRange}")
                 .setValues(statIds.map { i ->
                     listOf(
-                        this.statMap?.get(i)?.player ?: server?.userCache?.findByName(
+                        this.statMap?.get(i)?.player ?: server?.apiServices?.nameToIdCache?.findByName(
                             this.scoreboardMap?.get(i)?.player ?: return@map emptyList()
                         )
                             ?.getOrNull()
@@ -605,7 +605,7 @@ object Main : ModInitializer {
         var (maxValue, maxValuePlayer) = maxScoreboardValue(objective, comp)
 
         if (maxValuePlayer != null) {
-            maxValuePlayer = server!!.userCache?.findByName(maxValuePlayer)?.getOrNull()?.id?.toString()
+            maxValuePlayer = server!!.apiServices.nameToIdCache?.findByName(maxValuePlayer)?.getOrNull()?.id?.toString()
         }
 
         scoreboardMap!![name] = ScoreboardData(comp, maxValue, maxValuePlayer, index)
