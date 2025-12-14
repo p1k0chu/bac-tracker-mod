@@ -104,11 +104,27 @@ object Main : ModInitializer {
     }
 
     override fun onInitialize() {
+        registerServerStartedCallback()
+
+        registerScoreUpdatedCallback()
+
+        registerServerStoppingCallback()
+
+        registerCriterionChangedCallback()
+
+        registerStatUpdatedCallback()
+
+        CommandRegistrationCallback.EVENT.register(TrackerCommand::register)
+    }
+
+    private fun registerServerStartedCallback() {
         ServerLifecycleEvents.SERVER_STARTED.register { server: MinecraftServer ->
             this.server = server
             submitTask(::reloadConfigAndData)
         }
+    }
 
+    private fun registerScoreUpdatedCallback() {
         ScoreboardUpdatedCallback.SCORE_UPDATED.register { ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int ->
             // action on scoreboard update
             if (this.settings?.scoreboardEnabled != true) {
@@ -117,14 +133,15 @@ object Main : ModInitializer {
 
             val scoreboardData: ScoreboardData = this.scoreboardMap?.get(objective.name) ?: return@register
 
-            when(scoreboardData.type) {
+            when (scoreboardData.type) {
                 ComparingType.SUM -> {
                     val change = newScore - oldScore
                     val i: Int = min(Int.MAX_VALUE.toLong(), scoreboardData.value.toLong() + change).toInt()
                     scoreboardData.value = i
                 }
+
                 ComparingType.MAX -> {
-                    if(scoreboardData.value > newScore) {
+                    if (scoreboardData.value > newScore) {
                         return@register
                     } else {
                         scoreboardData.value = newScore
@@ -150,7 +167,9 @@ object Main : ModInitializer {
                 scoreboardData.value
             )
         }
+    }
 
+    private fun registerServerStoppingCallback() {
         ServerLifecycleEvents.SERVER_STOPPING.register { server: MinecraftServer ->
             // "free" memory of unused objects
             advMap = null
@@ -165,13 +184,15 @@ object Main : ModInitializer {
             scheduledExecutor?.shutdown()
             scheduledExecutor = null
 
-            if(server.isDedicated){
+            if (server.isDedicated) {
                 executor.shutdown()
             }
 
             this.state = State.NOT_INITIALIZED
         }
+    }
 
+    private fun registerCriterionChangedCallback() {
         AdvancementUpdatedCallback.CRITERION_CHANGED.register { player: ServerPlayerEntity, advancementEntry: AdvancementEntry, criteriaName: String, value: Boolean ->
             if (this.state != State.INITIALIZED || this.settings == null) {
                 return@register
@@ -180,7 +201,9 @@ object Main : ModInitializer {
             onAdvancementUpdate(player, advancementEntry)
             updateItem(advancementEntry, criteriaName, value)
         }
+    }
 
+    private fun registerStatUpdatedCallback() {
         StatUpdatedCallback.EVENT.register { player: PlayerEntity, stat: Stat<*>, oldValue: Int, newValue: Int ->
             if (this.state != State.INITIALIZED) {
                 return@register
@@ -198,11 +221,12 @@ object Main : ModInitializer {
                     val i: Int = min(statData.value.toLong() + change, Int.MAX_VALUE.toLong()).toInt()
                     statData.value = i
                 }
+
                 ComparingType.MAX -> {
                     if (newValue > statData.value) {
                         statData.value = newValue
 
-                        if(statData.player != player.uuidAsString) {
+                        if (statData.player != player.uuidAsString) {
                             statData.player = player.uuidAsString
 
                             putUpdateInPool(
@@ -225,8 +249,6 @@ object Main : ModInitializer {
                 newValue
             )
         }
-
-        CommandRegistrationCallback.EVENT.register(TrackerCommand::register)
     }
 
     /** parse path of the stat like "custom.death" and return StatData object corresponding to this stat */
