@@ -1,51 +1,71 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
-
-name: test
-
-permissions:
-  checks: write
-  pull-requests: write
+name: Build & Test
 
 on:
   push:
     branches: ["main"]
   pull_request:
     branches: ["**"]
+  release:
+    types: [published]
+
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+
     steps:
       - name: checkout repository
         uses: actions/checkout@v4
-        
+
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
           java-version: 21
           distribution: 'microsoft'
-          
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      
-      - name: make gradle wrapper executable
+
+      - name: Make gradle wrapper executable
         run: chmod +x ./gradlew
-      
-      - name: build
+
+      - name: Build
         run: ./gradlew build test
-     
+
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v5
         if: success() || failure() # always run even if the previous step fails
         with:
           report_paths: '**/build/test-results/test/TEST-*.xml'
-      
+
       - name: capture build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Artifacts
-          path: build/libs/
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+  publish:
+    name: Upload to release
+    needs: [build]
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v5
+        with:
+          name: Artifacts
+          path: release_assets
+
+      - name: upload
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload ${{ github.event.release.tag_name }} ./release_assets/*
