@@ -4,6 +4,7 @@ import com.github.p1k0chu.mcmod.bac_tracker.Main.logger
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
 import net.minecraft.command.CommandRegistryAccess
+import net.minecraft.command.DefaultPermissions
 import net.minecraft.server.command.CommandManager
 import net.minecraft.server.command.CommandManager.RegistrationEnvironment
 import net.minecraft.server.command.ServerCommandSource
@@ -17,13 +18,13 @@ import java.net.URI
 object TrackerCommand {
     @Suppress("UNUSED_PARAMETER")
     fun register(
-        dispatcher: CommandDispatcher<ServerCommandSource?>,
+        dispatcher: CommandDispatcher<ServerCommandSource>,
         registryAccess: CommandRegistryAccess,
         environment: RegistrationEnvironment
     ) {
         dispatcher.register(CommandManager.literal("tracker")
             .then(CommandManager.literal("reload")
-                .requires { source: ServerCommandSource -> source.hasPermissionLevel(3) || source.server.isHost(source.player?.playerConfigEntry) }
+                .requires { source: ServerCommandSource -> source.permissions.hasPermission(DefaultPermissions.ADMINS) || (source.server?.isHost(source.player?.playerConfigEntry) == true) }
                 .executes(::reloadCommand))
             .then(CommandManager.literal("sheet")
                 .executes(::sheetCommand))
