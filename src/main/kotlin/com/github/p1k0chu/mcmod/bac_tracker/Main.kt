@@ -1,5 +1,6 @@
 package com.github.p1k0chu.mcmod.bac_tracker
 
+import com.github.p1k0chu.mcmod.bac_tracker.Main.updatePool
 import com.github.p1k0chu.mcmod.bac_tracker.data.AdvancementData
 import com.github.p1k0chu.mcmod.bac_tracker.data.ItemData
 import com.github.p1k0chu.mcmod.bac_tracker.data.ScoreboardData
@@ -15,8 +16,9 @@ import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.findLatestCriteriaObtain
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getProfilePictureByUuid
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.makeSureDirectoryExists
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.moveRangeDownBy
+import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.parseSheetUrl
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.singleColumnValueRange
-import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getIdOrUrl
+import com.google.api.client.googleapis.json.GoogleJsonResponseException
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesRequest
 import com.google.api.services.sheets.v4.model.BatchUpdateValuesResponse
@@ -47,16 +49,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
-import java.util.concurrent.Callable
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.Future
-import java.util.concurrent.ScheduledExecutorService
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.*
 import java.util.regex.Pattern
-import kotlin.collections.component1
-import kotlin.collections.component2
-import kotlin.collections.set
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.nameWithoutExtension
 import kotlin.io.path.reader
@@ -106,7 +100,15 @@ object Main : ModInitializer {
     override fun onInitialize() {
         ServerLifecycleEvents.SERVER_STARTED.register { server: MinecraftServer ->
             this.server = server
-            submitTask(::reloadConfigAndData)
+            val resultFuture = submitTask(::reloadConfigAndData)
+            ForkJoinPool.commonPool().execute {
+                try {
+                    resultFuture.get()
+                    logger.info("Tracker initialized successfully")
+                } catch (e: ExecutionException) {
+                    logger.error("Error while initializing tracker", e.cause)
+                }
+            }
         }
 
         ScoreboardUpdatedCallback.SCORE_UPDATED.register { ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int ->
@@ -136,7 +138,7 @@ object Main : ModInitializer {
                                 this.settings!!.statSheet.name,
                                 this.settings!!.statSheet.whoRange,
                                 scoreboardData.index,
-                                getProfilePictureByUuid(scoreboardData.player)
+                                scoreboardData.player?.let { getProfilePictureByUuid(it) }
                             )
                         }
                     }
@@ -152,7 +154,6 @@ object Main : ModInitializer {
         }
 
         ServerLifecycleEvents.SERVER_STOPPING.register { server: MinecraftServer ->
-            // "free" memory of unused objects
             advMap = null
             statMap = null
             scoreboardMap = null
@@ -310,7 +311,7 @@ object Main : ModInitializer {
     private fun putUpdateInPool(sheetName: String, range: String, index: Int, value: Any?) {
         moveRangeDownBy(range, index)?.let { cell: String ->
             val valueRange = ValueRange()
-                .setValues(listOf(listOf((value))))
+                .setValues(listOf(listOf(value)))
                 .setRange("${sheetName}!$cell")
 
             synchronized(this.updatePool) {
@@ -405,7 +406,7 @@ object Main : ModInitializer {
                 batchUpdate(updates)
             } catch (e: Exception) {
                 logger.error("Caught exception while making api request", e)
-                server?.sendMessage(Text.of("Caught exception while making api request, mod automatically shuts down... run `/tracker reload` when you think you fixed your stuff"))
+                server?.sendMessage(Text.of("[BAC Tracker] Error happened while making api request, mod automatically shuts down... run `/tracker reload` when you think you fixed your stuff"))
                 state = State.NOT_INITIALIZED
             }
         }
@@ -414,93 +415,94 @@ object Main : ModInitializer {
     /** Reloads config and advancements, items and stats data.
      * if returned true it loaded perfectly. if its false some errors happened
      */
-    fun reloadConfigAndData(): Boolean {
-        try {
-            val settingsGlobalFolder: Path = FabricLoader.getInstance().configDir.resolve(MOD_ID)
-            val settingsPerWorldFolder = server?.getSavePath(WorldSavePath.ROOT)?.resolve("tracker") ?: return false
-            val advancementFolder = server?.getSavePath(WorldSavePath.ADVANCEMENTS) ?: return false
+    fun reloadConfigAndData() {
+        val settingsGlobalFolder: Path = FabricLoader.getInstance().configDir.resolve(MOD_ID)
 
-            val credPath = settingsGlobalFolder.resolve("credentials.json")
-            val settingsFile = settingsPerWorldFolder.resolve("settings.json")
+        val server = checkNotNull(this.server) { "Server is null. This should never happen." }
 
-            makeSureDirectoryExists(settingsGlobalFolder)
-            makeSureDirectoryExists(settingsPerWorldFolder)
+        val settingsPerWorldFolder = server.getSavePath(WorldSavePath.ROOT).resolve("tracker")
+        val advancementFolder = server.getSavePath(WorldSavePath.ADVANCEMENTS)
 
-            if (!settingsFile.toFile().exists()) {
-                // write a default config file for easy editing
-                settingsFile.toFile().writer().use { w ->
-                    GSON.toJson(Settings(), w)
-                }
-                throw FileNotFoundException(
-                    "settings file is missing. created new file for you, edit at: ${
-                        settingsFile.toAbsolutePath().normalize()
-                    }"
-                )
+        val credPath = settingsGlobalFolder.resolve("credentials.json")
+        val settingsFile = settingsPerWorldFolder.resolve("settings.json")
+
+        makeSureDirectoryExists(settingsGlobalFolder)
+        makeSureDirectoryExists(settingsPerWorldFolder)
+
+        if (!settingsFile.toFile().exists()) {
+            // write a default config file for easy editing
+            settingsFile.toFile().writer().use { w ->
+                GSON.toJson(Settings(), w)
             }
 
-            this.sheetApi = buildSheet(credPath)
+            val path = FabricLoader.getInstance()
+                .gameDir
+                .parent
+                .relativize(settingsFile)
+                .normalize()
 
-            this.settings = settingsFile.toFile().reader().use { r ->
-                GSON.fromJson(r, Settings::class.java)
-            }
-
-            // if url, convert to id
-            this.settings!!.sheetId = getIdOrUrl(this.settings!!.sheetId)
-
-            // load items
-            val (itemIds, itemAdvIds) = batchGet(
-                listOf(
-                    "${settings!!.itemSheet.name}!${settings!!.itemSheet.idRange}",
-                    "${settings!!.itemSheet.name}!${settings!!.itemSheet.advRange}"
-                )
-            )!!
-
-            initializeItems(itemIds, itemAdvIds)
-
-            // loading advancements
-            // download all tracked advancement ids
-            val advIds: List<String> = singleColumnValueRange(
-                getValueRange("${settings!!.advSheet.name}!${settings!!.advSheet.idRange}")!!
-            )
-
-            initializeAdv(advIds)
-
-            advancementFolder.listDirectoryEntries("*.json").forEach(::updateAdvancementsFromFile)
-
-            // making api request to the sheet to get all tracked stats and scoreboards, and their types
-            val (statIds, statTypes, comps) = batchGet(
-                listOf(
-                    "${settings!!.statSheet.name}!${settings!!.statSheet.idRange}",
-                    "${settings!!.statSheet.name}!${settings!!.statSheet.typeRange}",
-                    "${settings!!.statSheet.name}!${settings!!.statSheet.comparingTypeRange}"
-                )
-            )!!
-
-            initializeStatsAndScoreboard(statIds, statTypes, comps)
-
-            // api call to update everything
-            batchUpdate(getValueRangesToUpdateEverything(advIds, statIds, itemIds, itemAdvIds))
-
-            this.state = State.INITIALIZED
-
-            // stop old schedule and
-            // start new schedule to execute updates every 10 seconds
-            scheduledExecutor?.shutdown()
-            scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
-            scheduledExecutor!!.scheduleWithFixedDelay(
-                this::executePendingUpdates,
-                settings!!.updateDelaySeconds,
-                settings!!.updateDelaySeconds,
-                TimeUnit.SECONDS
-            )
-
-            return true
-        } catch (e: Exception) {
-            logger.error(e.message, e)
-
-            this.state = State.NOT_INITIALIZED
-            return false
+            throw FileNotFoundException("Settings file is missing. created new file for you, edit at: $path")
         }
+
+        this.sheetApi = buildSheet(credPath)
+
+        val settings = settingsFile.toFile().reader().use { r ->
+            GSON.fromJson(r, Settings::class.java)
+        }
+        this.settings = settings
+
+        // if url, convert to id
+        try {
+            settings.sheetId = parseSheetUrl(settings.sheetId)
+        } catch (_: IllegalArgumentException) {}
+
+        // load items
+        val (itemIds, itemAdvIds) = batchGet(
+            listOf(
+                "${settings.itemSheet.name}!${settings.itemSheet.idRange}",
+                "${settings.itemSheet.name}!${settings.itemSheet.advRange}"
+            )
+        )
+
+        initializeItems(itemIds, itemAdvIds)
+
+        // loading advancements
+        // download all tracked advancement ids
+        val advIds: List<String> = singleColumnValueRange(
+            getValueRange("${settings.advSheet.name}!${settings.advSheet.idRange}")
+        )
+
+        initializeAdv(advIds)
+
+        advancementFolder.listDirectoryEntries("*.json")
+            .forEach(::updateAdvancementsFromFile)
+
+        // making api request to the sheet to get all tracked stats and scoreboards, and their types
+        val (statIds, statTypes, comps) = batchGet(
+            listOf(
+                "${settings.statSheet.name}!${settings.statSheet.idRange}",
+                "${settings.statSheet.name}!${settings.statSheet.typeRange}",
+                "${settings.statSheet.name}!${settings.statSheet.comparingTypeRange}"
+            )
+        )
+
+        initializeStatsAndScoreboard(statIds, statTypes, comps)
+
+        // api call to update everything
+        batchUpdate(getValueRangesToUpdateEverything(advIds, statIds, itemIds, itemAdvIds))
+
+        this.state = State.INITIALIZED
+
+        // stop old schedule and
+        // start new schedule to execute updates every 10 seconds
+        scheduledExecutor?.shutdown()
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor()
+        scheduledExecutor!!.scheduleWithFixedDelay(
+            this::executePendingUpdates,
+            settings.updateDelaySeconds,
+            settings.updateDelaySeconds,
+            TimeUnit.SECONDS
+        )
     }
 
     private fun getValueRangesToUpdateEverything(
@@ -508,55 +510,66 @@ object Main : ModInitializer {
         statIds: List<String>,
         itemIds: List<String>,
         itemAdvIds: List<String>
-    ) = listOf(
-        // advancement completion
-        ValueRange().setRange("${settings!!.advSheet.name}!${settings!!.advSheet.statusRange}")
-            .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.done) }),
-        // advancement progress
-        ValueRange().setRange("${settings!!.advSheet.name}!${settings!!.advSheet.progressRange}")
-            .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.progress?.toString()) }),
-        // advancement completion time
-        ValueRange().setRange("${settings!!.advSheet.name}!${settings!!.advSheet.whenRange}")
-            .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.doneTime?.let(timeFormatter::format)) }),
-        // player with best advancement
-        ValueRange().setRange("${settings!!.advSheet.name}!${settings!!.advSheet.whoRange}")
-            .setValues(advIds.map { i ->
-                listOf(
-                    getProfilePictureByUuid(
-                        this.advMap?.get(
-                            i
-                        )?.player
-                    )
-                )
-            }),
+    ): List<ValueRange> {
+        val settings = checkNotNull(this.settings) { "Settings are null" }
 
-        // stats and scoreboards
-        // stat value
-        ValueRange().setRange("${settings!!.statSheet.name}!${settings!!.statSheet.valueRange}")
-            .setValues(statIds.map { i ->
-                listOf(this.statMap?.get(i)?.value ?: this.scoreboardMap?.get(i)?.value)
-            }),
-        // player with the best stat (if present)
-        ValueRange().setRange("${settings!!.statSheet.name}!${settings!!.statSheet.whoRange}")
-            .setValues(statIds.map { i ->
-                listOf(
-                    getProfilePictureByUuid(
+        return listOf(
+            // advancement completion
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.statusRange}")
+                .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.done) }),
+            // advancement progress
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.progressRange}")
+                .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.progress?.toString()) }),
+            // advancement completion time
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.whenRange}")
+                .setValues(advIds.map { i -> listOf(this.advMap?.get(i)?.doneTime?.let(timeFormatter::format)) }),
+            // player with best advancement
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.whoRange}")
+                .setValues(advIds.map { i ->
+                    listOf(
+                        this.advMap?.get(i)?.player?.let(::getProfilePictureByUuid)
+                    )
+                }),
+            // incomplete criteria
+            ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.incompleteCriteriaRange}")
+                .setValues(advIds.map { i ->
+                    listOf(
+                        this.advMap?.get(i)
+                            ?.incomplete
+                            ?.joinToString()
+                    )
+                }),
+
+            // stats and scoreboards
+            // stat value
+            ValueRange().setRange("${settings.statSheet.name}!${settings.statSheet.valueRange}")
+                .setValues(statIds.map { i ->
+                    listOf(this.statMap?.get(i)?.value ?: this.scoreboardMap?.get(i)?.value)
+                }),
+            // player with the best stat (if present)
+            ValueRange().setRange("${settings.statSheet.name}!${settings.statSheet.whoRange}")
+                .setValues(statIds.map { i ->
+                    listOf(
                         this.statMap?.get(i)?.player ?: server?.userCache?.findByName(
                             this.scoreboardMap?.get(i)?.player ?: return@map emptyList()
-                        )?.getOrNull()?.id?.toString()
+                        )
+                            ?.getOrNull()
+                            ?.id
+                            ?.toString()
+                            ?.let(::getProfilePictureByUuid)
                     )
-                )
-            }),
+                }),
 
-        // items
-        // status
-        ValueRange().setRange("${settings!!.itemSheet.name}!${settings!!.itemSheet.statusRange}")
-            .setValues(itemIds.mapIndexed { i, itemId ->
-                listOf(
-                    this.itemMap?.get(itemAdvIds[i])?.get(itemId)?.done
-                )
-            })
-    )
+            // items
+            // status
+            ValueRange().setRange("${settings.itemSheet.name}!${settings.itemSheet.statusRange}")
+                .setValues(itemIds.mapIndexed { i, itemId ->
+                    listOf(
+                        this.itemMap?.get(itemAdvIds[i])?.get(itemId)?.done
+                    )
+                })
+        )
+    }
 
     private fun initializeStatsAndScoreboard(statIds: List<String?>, statTypes: List<String?>, comps: List<String?>) {
         scoreboardMap = mutableMapOf()
@@ -625,7 +638,7 @@ object Main : ModInitializer {
     }
 
     private fun initStat(index: Int, name: String, comp: String) {
-        val (bestValue, bestPlayer) = findMaxStatValueFromFiles(name, comp) ?: return
+        val (bestValue, bestPlayer) = findMaxStatValueFromFiles(name, comp)
 
         statMap!![name] = StatData(bestPlayer, comp, bestValue, index)
     }
@@ -633,16 +646,14 @@ object Main : ModInitializer {
     /**
      * @return pair of the best value and player who holds this value
      */
-    private fun findMaxStatValueFromFiles(name: String, comp: String): Pair<Int, String?>? {
+    private fun findMaxStatValueFromFiles(name: String, comp: String): Pair<Int, String?> {
         val x: List<String> = name
             .split(".", limit = 2)
 
         if (x.size < 2) {
-            logger.error(
-                "wrong format for stat ({}) in the sheet: must be category.name; e.g. \"custom.deaths\"; skipping",
-                name
+            throw IllegalArgumentException(
+                "wrong format for stat ($name) in the sheet: must be category.name; e.g. \"custom.deaths\"; skipping",
             )
-            return null
         }
 
         val (statType, statObj) = x
@@ -681,9 +692,9 @@ object Main : ModInitializer {
             GSON.fromJson(r, JsonObject::class.java)
         }
 
-        // advFileJson.keySet() is a set of advancement ids **and** "DataVersion"
         for (advId in advFileJson.keySet()) {
-            if (!advFileJson[advId]!!.isJsonObject) continue
+            // advFileJson.keySet() is a set of advancement ids **and** "DataVersion"
+            if (!advFileJson[advId].isJsonObject) continue
 
             val advJson: JsonObject = advFileJson[advId].asJsonObject
 
@@ -695,16 +706,34 @@ object Main : ModInitializer {
     private fun updateAdvancement(advId: String, advJson: JsonObject, playerUUID: String) {
         val adv: AdvancementData = this.advMap?.get(advId) ?: return
 
+        val completedCriteria = advJson["criteria"].getAsJsonObject()
+            .keySet()
+
         if (!adv.done) {
+            adv.progress?.let { progress ->
+                progress.nom = completedCriteria.size
+
+                server!!.advancementLoader.get(Identifier.of(advId))?.let { advEntry ->
+                    progress.den = advEntry.value.requirements.length
+                }
+            }
+
             if (advJson["done"]?.asBoolean == true) {
                 adv.done = true
                 adv.player = playerUUID
                 adv.doneTime = findLatestCriteriaObtainedDate(advJson)
-
-                // set progress to 100%
-                adv.progress?.nom = adv.progress!!.den
             } else {
-                adv.progress?.nom = advJson["criteria"].getAsJsonObject().size()
+                server!!.advancementLoader.get(Identifier.of(advId))?.let { advancementEntry ->
+                    adv.incomplete = advancementEntry.value
+                        .criteria
+                        .mapNotNull { criterion ->
+                            if (completedCriteria.contains(criterion.key)) {
+                                criterion.key
+                            } else {
+                                null
+                            }
+                        }
+                }
             }
         }
     }
@@ -718,7 +747,7 @@ object Main : ModInitializer {
     }
 
     private fun initializeAdv(advIds: List<String>) {
-        advMap = mutableMapOf()
+        val advMap = mutableMapOf<String, AdvancementData>()
 
         for (i in advIds.indices) {
             val advancementEntry: AdvancementEntry? = server!!.advancementLoader.get(Identifier.of(advIds[i]))
@@ -728,47 +757,85 @@ object Main : ModInitializer {
                 continue
             }
 
-            advMap!![advIds[i]] = AdvancementData(
+            advMap[advIds[i]] = AdvancementData(
                 false, null, null, i, AdvancementData.Progress(0, advancementEntry.value().criteria().size)
             )
         }
+        this.advMap = advMap
     }
 
     private fun initializeItems(itemIds: List<String>, itemAdvIds: List<String>) {
-        itemMap = mutableMapOf()
+        val itemMap = mutableMapOf<String, MutableMap<String, ItemData>>()
 
         for (i in itemIds.indices) {
             // put new hash map for advancement id if it doesn't exist yet
-            if (!itemMap!!.containsKey(itemAdvIds[i])) {
-                itemMap!![itemAdvIds[i]] = mutableMapOf()
+            if (!itemMap.containsKey(itemAdvIds[i])) {
+                itemMap[itemAdvIds[i]] = mutableMapOf()
             }
 
             // put item in the map of advancement
-            itemMap!![itemAdvIds[i]]!![itemIds[i]] = ItemData(index = i)
+            itemMap[itemAdvIds[i]]!![itemIds[i]] = ItemData(index = i)
+        }
+
+        this.itemMap = itemMap
+    }
+
+    private fun batchUpdate(valueRanges: List<ValueRange>): BatchUpdateValuesResponse {
+        val settings = checkNotNull(this.settings) { "`settings` is null. this should never happen" }
+        val sheetApi = checkNotNull(this.sheetApi) { "`sheetApi` is null. this should never happen" }
+
+        val body = BatchUpdateValuesRequest()
+            .setValueInputOption("USER_ENTERED")
+            .setIncludeValuesInResponse(false)
+            .setData(valueRanges)
+
+        try {
+            return sheetApi.spreadsheets()
+                .values()
+                .batchUpdate(settings.sheetId, body)
+                .execute()
+        } catch (e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
         }
     }
 
-    private fun batchUpdate(valueRanges: List<ValueRange>): BatchUpdateValuesResponse? {
-        val body = BatchUpdateValuesRequest().setValueInputOption("USER_ENTERED").setIncludeValuesInResponse(false)
-            .setData(valueRanges)
-        return this.sheetApi?.spreadsheets()?.values()?.batchUpdate(this.settings?.sheetId ?: return null, body)?.execute()
+    private fun batchGet(cellRanges: List<String>): List<List<String>> {
+        val settings = checkNotNull(this.settings) { "`settings` is null. this should never happen" }
+        val sheetApi = checkNotNull(this.sheetApi) { "`sheetApi` is null. this should never happen" }
+
+        try {
+            return sheetApi
+                .spreadsheets().values()
+                .batchGet(settings.sheetId)
+                .setRanges(cellRanges)
+                .execute()
+                .valueRanges
+                .map(::singleColumnValueRange)
+        } catch (e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
+        }
     }
 
-    private fun batchGet(cellRanges: List<String>): List<List<String>>? {
-        return this.sheetApi
-            ?.spreadsheets()?.values()
-            ?.batchGet(this.settings?.sheetId ?: return null)
-            ?.setRanges(cellRanges)
-            ?.execute()
-            ?.valueRanges
-            ?.map(::singleColumnValueRange)
+    private fun getValueRange(cellRange: String): ValueRange {
+        val settings = checkNotNull(this.settings) { "`settings` is null. this should never happen" }
+        val sheetApi = checkNotNull(this.sheetApi) { "`sheetApi` is null. this should never happen" }
+
+        try {
+            return sheetApi
+                .spreadsheets().values()
+                .get(settings.sheetId, cellRange)
+                .execute()
+        } catch(e: GoogleJsonResponseException) {
+            handleGoogleJsonResponseException(e)
+        }
     }
 
-    private fun getValueRange(cellRange: String): ValueRange? {
-        return this.sheetApi
-            ?.spreadsheets()?.values()
-            ?.get(this.settings?.sheetId ?: return null, cellRange)
-            ?.execute()
+    private fun handleGoogleJsonResponseException(exc: GoogleJsonResponseException): Nothing {
+        when (exc.statusCode) {
+            404 -> throw RuntimeException("Sheet with id \"${settings?.sheetId}\" not found", exc)
+            403 -> throw RuntimeException("No access to sheet with id \"${settings?.sheetId}\"", exc)
+            else -> throw RuntimeException("Spreadsheet api error!", exc)
+        }
     }
 
     enum class State {

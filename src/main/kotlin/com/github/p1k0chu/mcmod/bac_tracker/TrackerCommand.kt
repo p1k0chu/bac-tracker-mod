@@ -1,5 +1,6 @@
 package com.github.p1k0chu.mcmod.bac_tracker
 
+import com.github.p1k0chu.mcmod.bac_tracker.Main.logger
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
 import net.minecraft.command.CommandRegistryAccess
@@ -37,21 +38,27 @@ object TrackerCommand {
         val url = "https://docs.google.com/spreadsheets/d/${Main.settings?.sheetId ?: return 1}/edit"
 
         context.source?.sendFeedback({
-            Text.literal(url).styled { style: Style? ->
-                style?.withClickEvent(ClickEvent.OpenUrl(URI.create(url)))?.withHoverEvent(
-                    HoverEvent.ShowText(Text.of("Click to open url"))
-                )?.withItalic(true)?.withUnderline(true)?.withColor(Colors.LIGHT_GRAY)
+            Text.literal(url).styled { style: Style ->
+                style.withClickEvent(ClickEvent.OpenUrl(URI.create(url)))
+                    .withHoverEvent(HoverEvent.ShowText(Text.of("Click to open url")))
+                    .withItalic(true)
+                    .withUnderline(true)
+                    .withColor(Colors.LIGHT_GRAY)
             }
         }, false)
         return 0
     }
 
     fun reloadCommand(context: CommandContext<ServerCommandSource?>): Int {
+        context.source?.sendFeedback({ Text.of("Reloading...") }, true)
+
         Main.submitTask {
-            if (Main.reloadConfigAndData()) {
+            try {
+                Main.reloadConfigAndData()
                 context.source?.sendFeedback({ Text.of("Successful reload") }, true)
-            } else {
-                context.source?.sendFeedback({ Text.of("Errors happened when reloading, check logs") }, true)
+            } catch (e: Throwable) {
+                context.source?.sendFeedback({ Text.of("Failed to reload: ${e::class.simpleName}: ${e.message}") }, true)
+                logger.error("Failed to reload", e)
             }
         }
         return 0

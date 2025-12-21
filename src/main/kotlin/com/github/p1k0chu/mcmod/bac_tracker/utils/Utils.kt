@@ -22,18 +22,22 @@ import kotlin.collections.firstOrNull
 
 object Utils {
     private val rangeRegex: Pattern = Pattern.compile("(?<sL>\\D+)(?<sN>\\d*):(?<eL>\\D+)", Pattern.CASE_INSENSITIVE)
-    private val googleSheetUrlRegex = Pattern.compile("https:\\/\\/docs\\.google\\.com\\/spreadsheets\\/d\\/(?<id>.*)\\/edit.*")
+    private val googleSheetUrlRegex = Pattern.compile("https://docs\\.google\\.com/spreadsheets/d/(?<id>.*)/edit.*")
 
     // used for parsing from advancement json files
     val minecraftTimeFormatter: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss Z", Locale.ROOT).withZone(ZoneId.systemDefault())
 
-    fun getIdOrUrl(str: String): String {
+    /**
+     * @return the id from the url
+     * @throws IllegalArgumentException if [str] doesn't match the url regex ([googleSheetUrlRegex])
+     */
+    fun parseSheetUrl(str: String): String {
         val m = googleSheetUrlRegex.matcher(str)
         return if (m.find()) {
             m.group("id")
         } else {
-            str
+            throw IllegalArgumentException("url doesn't match regex")
         }
     }
 
@@ -62,33 +66,29 @@ object Utils {
      * @param player uuid of the player
      * @return url of profile picture as excel =IMAGE(stuff)
      */
-    fun getProfilePictureByUuid(player: String?): String? {
-        if (player == null) return null
-
+    fun getProfilePictureByUuid(player: String): String {
         return "=IMAGE(\"https://crafatar.com/avatars/$player?size=16&overlay\")"
     }
 
-    fun buildSheet(credPath: Path): Sheets? {
-        val email =
-            credPath.toFile().reader().use { r ->
-                val j: JsonObject = GSON.fromJson(r, JsonObject::class.java)
+    fun buildSheet(credPath: Path): Sheets {
+        val email = credPath.toFile().reader().use { reader ->
+            val json: JsonObject = GSON.fromJson(reader, JsonObject::class.java)
 
-                j.get("client_email").asString
-            }
+            json.get("client_email").asString
+        }
 
-        return Sheets
-            .Builder(
-                NetHttpTransport(),
-                GsonFactory.getDefaultInstance(),
-                HttpCredentialsAdapter(
-                    credPath
-                        .toFile()
-                        .inputStream()
-                        .use { stream -> GoogleCredentials.fromStream(stream) }
-                        .createScoped(mutableSetOf<String?>(SheetsScopes.SPREADSHEETS))
-                        .createDelegated(email),
-                ),
-            ).setApplicationName(APP_NAME)
+        return Sheets.Builder(
+            NetHttpTransport(),
+            GsonFactory.getDefaultInstance(),
+            HttpCredentialsAdapter(
+                credPath
+                    .toFile()
+                    .inputStream()
+                    .use { stream -> GoogleCredentials.fromStream(stream) }
+                    .createScoped(mutableSetOf<String?>(SheetsScopes.SPREADSHEETS))
+                    .createDelegated(email),
+            ),
+        ).setApplicationName(APP_NAME)
             .build()
     }
 
@@ -107,13 +107,12 @@ object Utils {
         var max: Instant? = null
 
         advJson["criteria"].getAsJsonObject().asMap().forEach { (_, time) ->
-            val x =
-                minecraftTimeFormatter.parse(time.asString) { temporal: TemporalAccessor? ->
-                    Instant.from(temporal)
-                }
+            val instant = minecraftTimeFormatter.parse(time.asString) { temporal: TemporalAccessor? ->
+                Instant.from(temporal)
+            }
 
-            if (max?.isBefore(x) != false) {
-                max = x
+            if (max?.isBefore(instant) != false) {
+                max = instant
             }
         }
         return max
@@ -121,6 +120,9 @@ object Utils {
 
     /** single column value range will be just list of lists with one element.
      * filters out null and maps it to be 1-dimensional list */
-    @Suppress("UsePropertyAccessSyntax") // IDK why but using property access breaks everything
-    fun singleColumnValueRange(range: ValueRange): List<String> = range.getValues().mapNotNull { it?.firstOrNull()?.toString() }
+    @Suppress("UsePropertyAccessSyntax")
+    fun singleColumnValueRange(range: ValueRange): List<String> {
+        val values: List<List<Any?>?> = range.getValues() ?: return listOf()
+        return values.mapNotNull { it?.firstOrNull()?.toString() }
+    }
 }

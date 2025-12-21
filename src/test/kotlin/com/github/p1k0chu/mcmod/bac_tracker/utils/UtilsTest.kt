@@ -1,12 +1,13 @@
 package com.github.p1k0chu.mcmod.bac_tracker.utils
 
-import com.google.api.client.json.JsonString
 import com.google.api.services.sheets.v4.model.ValueRange
-import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.google.gson.JsonPrimitive
+import org.junit.jupiter.api.assertThrows
 import java.time.Instant
-import kotlin.test.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 class UtilsTest {
     @Test
@@ -19,25 +20,16 @@ class UtilsTest {
     }
 
     @Test
-    fun getIdOrUrlValidUrl() {
+    fun parseSheetUrlValidUrl() {
         val validUrl = "https://docs.google.com/spreadsheets/d/MY_ID_HERE/edit?flags=useless"
-        assertEquals("MY_ID_HERE", Utils.getIdOrUrl(validUrl))
+        assertEquals("MY_ID_HERE", Utils.parseSheetUrl(validUrl))
     }
 
     @Test
-    fun getIdOrUrlNotUrl() {
-        val input = "some id"
-        assertEquals(input, Utils.getIdOrUrl(input))
-    }
-
-    @Test
-    fun getProfilePictureByUuid() {
-        assertIs<String>(Utils.getProfilePictureByUuid("some uuid"))
-    }
-
-    @Test
-    fun getProfilePictureByUuidNull() {
-        assertNull(Utils.getProfilePictureByUuid(null))
+    fun parseSheetUrlNotUrl() {
+        assertThrows<IllegalArgumentException> {
+            Utils.parseSheetUrl("not valid url")
+        }
     }
 
     @Test
