@@ -727,7 +727,7 @@ object Main : ModInitializer {
                     adv.incomplete = advancementEntry.value
                         .criteria
                         .mapNotNull { criterion ->
-                            if (completedCriteria.contains(criterion.key)) {
+                            if (!completedCriteria.contains(criterion.key)) {
                                 criterion.key
                             } else {
                                 null
