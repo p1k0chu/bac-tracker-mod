@@ -32,6 +32,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
 import net.minecraft.advancement.AdvancementEntry
 import net.minecraft.advancement.AdvancementProgress
+import net.minecraft.command.argument.EntityArgumentType.player
 import net.minecraft.entity.player.PlayerEntity
 import net.minecraft.scoreboard.ScoreboardObjective
 import net.minecraft.server.MinecraftServer
@@ -40,6 +41,7 @@ import net.minecraft.stat.Stat
 import net.minecraft.text.Text
 import net.minecraft.util.Identifier
 import net.minecraft.util.WorldSavePath
+import org.lwjgl.system.linux.Stat.stat
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -112,45 +114,7 @@ object Main : ModInitializer {
         }
 
         ScoreboardUpdatedCallback.SCORE_UPDATED.register { ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int ->
-            // action on scoreboard update
-            if (this.settings?.scoreboardEnabled != true) {
-                return@register
-            }
-
-            val scoreboardData: ScoreboardData = this.scoreboardMap?.get(objective.name) ?: return@register
-
-            when(scoreboardData.type) {
-                ComparingType.SUM -> {
-                    val change = newScore - oldScore
-                    val i: Int = min(Int.MAX_VALUE.toLong(), scoreboardData.value.toLong() + change).toInt()
-                    scoreboardData.value = i
-                }
-                ComparingType.MAX -> {
-                    if(scoreboardData.value > newScore) {
-                        return@register
-                    } else {
-                        scoreboardData.value = newScore
-
-                        if (ownerUUID != scoreboardData.player) {
-                            scoreboardData.player = ownerUUID
-
-                            putUpdateInPool(
-                                this.settings!!.statSheet.name,
-                                this.settings!!.statSheet.whoRange,
-                                scoreboardData.index,
-                                scoreboardData.player?.let { getProfilePictureByUuid(it) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            putUpdateInPool(
-                this.settings!!.statSheet.name,
-                this.settings!!.statSheet.valueRange,
-                scoreboardData.index,
-                scoreboardData.value
-            )
+            onScoreboardUpdate(ownerUUID, objective, oldScore, newScore)
         }
 
         ServerLifecycleEvents.SERVER_STOPPING.register { server: MinecraftServer ->
@@ -183,48 +147,7 @@ object Main : ModInitializer {
         }
 
         StatUpdatedCallback.EVENT.register { player: PlayerEntity, stat: Stat<*>, oldValue: Int, newValue: Int ->
-            if (this.state != State.INITIALIZED) {
-                return@register
-            }
-
-            if (this.settings?.statEnabled != true) {
-                return@register
-            }
-
-            val statData: StatData = getStatFromPath(stat.name) ?: return@register
-
-            when (statData.type) {
-                ComparingType.SUM -> {
-                    val change = newValue - oldValue
-                    val i: Int = min(statData.value.toLong() + change, Int.MAX_VALUE.toLong()).toInt()
-                    statData.value = i
-                }
-                ComparingType.MAX -> {
-                    if (newValue > statData.value) {
-                        statData.value = newValue
-
-                        if(statData.player != player.uuidAsString) {
-                            statData.player = player.uuidAsString
-
-                            putUpdateInPool(
-                                this.settings!!.statSheet.name,
-                                this.settings!!.statSheet.whoRange,
-                                statData.index,
-                                getProfilePictureByUuid(player.uuidAsString)
-                            )
-                        }
-                    } else {
-                        return@register
-                    }
-                }
-            }
-
-            putUpdateInPool(
-                this.settings!!.statSheet.name,
-                this.settings!!.statSheet.valueRange,
-                statData.index,
-                newValue
-            )
+            onStatUpdate(player, stat, oldValue, newValue)
         }
 
         CommandRegistrationCallback.EVENT.register(TrackerCommand::register)
@@ -297,6 +220,95 @@ object Main : ModInitializer {
             advancement.doneTime = newInstant
             advancement.player = player.uuidAsString
         }
+    }
+
+    private fun onScoreboardUpdate(ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int) {
+        val settings = this.settings ?: return
+
+        if (!settings.scoreboardEnabled) {
+            return
+        }
+
+        val scoreboardData: ScoreboardData = this.scoreboardMap?.get(objective.name) ?: return
+
+        when(scoreboardData.type) {
+            ComparingType.SUM -> {
+                val change = newScore - oldScore
+                val i: Int = min(Int.MAX_VALUE.toLong(), scoreboardData.value.toLong() + change).toInt()
+                scoreboardData.value = i
+            }
+            ComparingType.MAX -> {
+                if(scoreboardData.value >= newScore) {
+                    return
+                }
+                scoreboardData.value = newScore
+
+                if (ownerUUID != scoreboardData.player) {
+                    scoreboardData.player = ownerUUID
+
+                    putUpdateInPool(
+                        settings.statSheet.name,
+                        settings.statSheet.whoRange,
+                        scoreboardData.index,
+                        scoreboardData.player?.let { getProfilePictureByUuid(it) }
+                    )
+                }
+            }
+        }
+
+        putUpdateInPool(
+            settings.statSheet.name,
+            settings.statSheet.valueRange,
+            scoreboardData.index,
+            scoreboardData.value
+        )
+    }
+
+    private fun onStatUpdate(player: PlayerEntity, stat: Stat<*>, oldValue: Int, newValue: Int) {
+        if (this.state != State.INITIALIZED) {
+            return
+        }
+
+        val settings = this.settings ?: return
+
+        if (!settings.statEnabled) {
+            return
+        }
+
+        val statData: StatData = getStatFromPath(stat.name) ?: return
+
+        when (statData.type) {
+            ComparingType.SUM -> {
+                val change = newValue - oldValue
+                val i: Int = min(statData.value.toLong() + change, Int.MAX_VALUE.toLong()).toInt()
+                statData.value = i
+            }
+            ComparingType.MAX -> {
+                if (newValue <= statData.value) {
+                    return
+                }
+
+                statData.value = newValue
+
+                if(statData.player != player.uuidAsString) {
+                    statData.player = player.uuidAsString
+
+                    putUpdateInPool(
+                        settings.statSheet.name,
+                        settings.statSheet.whoRange,
+                        statData.index,
+                        getProfilePictureByUuid(player.uuidAsString)
+                    )
+                }
+            }
+        }
+
+        putUpdateInPool(
+            settings.statSheet.name,
+            settings.statSheet.valueRange,
+            statData.index,
+            newValue
+        )
     }
 
     /** used to update values on the sheet.
@@ -727,7 +739,7 @@ object Main : ModInitializer {
                     adv.incomplete = advancementEntry.value
                         .criteria
                         .mapNotNull { criterion ->
-                            if (completedCriteria.contains(criterion.key)) {
+                            if (!completedCriteria.contains(criterion.key)) {
                                 criterion.key
                             } else {
                                 null
