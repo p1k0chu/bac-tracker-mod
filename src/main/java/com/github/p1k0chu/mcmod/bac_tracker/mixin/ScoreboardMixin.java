@@ -12,18 +12,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(targets = "net.minecraft.world.scores.Scoreboard$1")
 public abstract class ScoreboardMixin {
-    @Shadow(aliases = "field_47547") @Final
-    ScoreHolder scoreHolder;
+    @Shadow
+    @Final
+    ScoreHolder val$scoreHolder;
 
-    @Shadow(aliases = "field_47546") @Final
-    Objective objective;
+    @Shadow
+    @Final
+    Objective val$objective;
 
-    @Shadow public abstract int getScore();
+    @Shadow
+    public abstract int get();
 
-    @Inject(method = "setScore(I)V", at = @At("HEAD"))
+    @Inject(method = "set(I)V", at = @At("HEAD"))
     void setScore(int score, CallbackInfo ci) {
-        ScoreboardUpdatedCallback.SCORE_UPDATED.invoker().interact(scoreHolder.getScoreboardName(), objective, getScore(), score);
+        ScoreboardUpdatedCallback.SCORE_UPDATED.invoker().interact(val$scoreHolder.getScoreboardName(), val$objective, get(), score);
     }
 }
-// mixin into anonymous classes is so awful
-// this is a cry for help
