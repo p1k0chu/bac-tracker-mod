@@ -2,8 +2,8 @@ package com.github.p1k0chu.mcmod.bac_tracker.event;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.stat.Stat;
+import net.minecraft.stats.Stat;
+import net.minecraft.world.entity.player.Player;
 
 public interface StatUpdatedCallback {
     Event<StatUpdatedCallback> EVENT = EventFactory.createArrayBacked(StatUpdatedCallback.class,
@@ -13,5 +13,5 @@ public interface StatUpdatedCallback {
                 }
             });
 
-    void interact(PlayerEntity player, Stat<?> stat, int oldValue, int newValue);
+    void interact(Player player, Stat<?> stat, int oldValue, int newValue);
 }

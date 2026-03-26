@@ -2,8 +2,8 @@ package com.github.p1k0chu.mcmod.bac_tracker.event;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.advancement.AdvancementEntry;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.server.level.ServerPlayer;
 
 public interface AdvancementUpdatedCallback {
     Event<AdvancementUpdatedCallback> CRITERION_CHANGED = EventFactory.createArrayBacked(AdvancementUpdatedCallback.class,
@@ -13,5 +13,5 @@ public interface AdvancementUpdatedCallback {
                 }
             });
 
-    void interact(ServerPlayerEntity player, AdvancementEntry advancementEntry, String criteria, boolean newValue);
+    void interact(ServerPlayer player, AdvancementHolder advancementEntry, String criteria, boolean newValue);
 }

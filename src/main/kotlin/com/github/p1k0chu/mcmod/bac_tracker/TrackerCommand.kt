@@ -3,62 +3,71 @@ package com.github.p1k0chu.mcmod.bac_tracker
 import com.github.p1k0chu.mcmod.bac_tracker.Main.logger
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.context.CommandContext
-import net.minecraft.command.CommandRegistryAccess
-import net.minecraft.command.DefaultPermissions
-import net.minecraft.server.command.CommandManager
-import net.minecraft.server.command.CommandManager.RegistrationEnvironment
-import net.minecraft.server.command.ServerCommandSource
-import net.minecraft.text.ClickEvent
-import net.minecraft.text.HoverEvent
-import net.minecraft.text.Style
-import net.minecraft.text.Text
-import net.minecraft.util.Colors
+import net.minecraft.commands.CommandBuildContext
+import net.minecraft.commands.CommandSourceStack
+import net.minecraft.commands.Commands
+import net.minecraft.network.chat.ClickEvent
+import net.minecraft.network.chat.Component
+import net.minecraft.network.chat.HoverEvent
+import net.minecraft.network.chat.Style
+import net.minecraft.server.permissions.Permissions
+import net.minecraft.util.CommonColors
 import java.net.URI
 
 object TrackerCommand {
     @Suppress("UNUSED_PARAMETER")
     fun register(
-        dispatcher: CommandDispatcher<ServerCommandSource>,
-        registryAccess: CommandRegistryAccess,
-        environment: RegistrationEnvironment
+        dispatcher: CommandDispatcher<CommandSourceStack>,
+        buildContext: CommandBuildContext,
+        selection: Commands.CommandSelection
     ) {
-        dispatcher.register(CommandManager.literal("tracker")
-            .then(CommandManager.literal("reload")
-                .requires { source: ServerCommandSource -> source.permissions.hasPermission(DefaultPermissions.ADMINS) || (source.server?.isHost(source.player?.playerConfigEntry) == true) }
-                .executes(::reloadCommand))
-            .then(CommandManager.literal("sheet")
-                .executes(::sheetCommand))
+        dispatcher.register(
+            Commands.literal("tracker")
+                .then(
+                    Commands.literal("reload")
+                        .requires { source: CommandSourceStack ->
+                            source.permissions().hasPermission(Permissions.COMMANDS_ADMIN)
+                                    || source.player?.let { source.server.isSingleplayerOwner(it.nameAndId()) } == true
+                        }
+                        .executes(::reloadCommand))
+                .then(
+                    Commands.literal("sheet")
+                        .executes(::sheetCommand)
+                )
         )
     }
 
-    fun sheetCommand(context: CommandContext<ServerCommandSource?>): Int {
+    fun sheetCommand(context: CommandContext<CommandSourceStack>): Int {
         if (Main.state != Main.State.INITIALIZED) {
-            context.source?.sendError(Text.of("Tracker is not initialized"))
+            context.source.sendFailure(Component.literal("Tracker is not initialized"))
             return 1
         }
         val url = "https://docs.google.com/spreadsheets/d/${Main.settings?.sheetId ?: return 1}/edit"
 
-        context.source?.sendFeedback({
-            Text.literal(url).styled { style: Style ->
+        context.source.sendSuccess({
+            Component.literal(url).withStyle { style: Style ->
                 style.withClickEvent(ClickEvent.OpenUrl(URI.create(url)))
-                    .withHoverEvent(HoverEvent.ShowText(Text.of("Click to open url")))
+                    .withHoverEvent(HoverEvent.ShowText(Component.literal("Click to open url")))
                     .withItalic(true)
-                    .withUnderline(true)
-                    .withColor(Colors.LIGHT_GRAY)
+                    .withUnderlined(true)
+                    .withColor(CommonColors.LIGHT_GRAY)
             }
         }, false)
         return 0
     }
 
-    fun reloadCommand(context: CommandContext<ServerCommandSource?>): Int {
-        context.source?.sendFeedback({ Text.of("Reloading...") }, true)
+    fun reloadCommand(context: CommandContext<CommandSourceStack>): Int {
+        context.source.sendSuccess({ Component.literal("Reloading...") }, true)
 
         Main.submitTask {
             try {
                 Main.reloadConfigAndData()
-                context.source?.sendFeedback({ Text.of("Successful reload") }, true)
+                context.source?.sendSuccess({ Component.literal("Successful reload") }, true)
             } catch (e: Throwable) {
-                context.source?.sendFeedback({ Text.of("Failed to reload: ${e::class.simpleName}: ${e.message}") }, true)
+                context.source.sendSuccess(
+                    { Component.literal("Failed to reload: ${e::class.simpleName}: ${e.message}") },
+                    true
+                )
                 logger.error("Failed to reload", e)
             }
         }

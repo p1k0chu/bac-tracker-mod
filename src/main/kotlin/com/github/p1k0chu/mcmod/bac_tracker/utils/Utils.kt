@@ -106,7 +106,7 @@ object Utils {
     fun findLatestCriteriaObtainedDate(advJson: JsonObject): Instant? {
         var max: Instant? = null
 
-        advJson["criteria"].getAsJsonObject().asMap().forEach { (_, time) ->
+        advJson["criteria"].asJsonObject.asMap().forEach { (_, time) ->
             val instant = minecraftTimeFormatter.parse(time.asString) { temporal: TemporalAccessor? ->
                 Instant.from(temporal)
             }
@@ -120,7 +120,6 @@ object Utils {
 
     /** single column value range will be just list of lists with one element.
      * filters out null and maps it to be 1-dimensional list */
-    @Suppress("UsePropertyAccessSyntax")
     fun singleColumnValueRange(range: ValueRange): List<String> {
         val values: List<List<Any?>?> = range.getValues() ?: return listOf()
         return values.mapNotNull { it?.firstOrNull()?.toString() }

@@ -30,18 +30,16 @@ import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 import net.fabricmc.loader.api.FabricLoader
-import net.minecraft.advancement.AdvancementEntry
-import net.minecraft.advancement.AdvancementProgress
-import net.minecraft.command.argument.EntityArgumentType.player
-import net.minecraft.entity.player.PlayerEntity
-import net.minecraft.scoreboard.ScoreboardObjective
+import net.minecraft.advancements.AdvancementHolder
+import net.minecraft.advancements.AdvancementProgress
+import net.minecraft.network.chat.Component
+import net.minecraft.resources.Identifier
 import net.minecraft.server.MinecraftServer
-import net.minecraft.server.network.ServerPlayerEntity
-import net.minecraft.stat.Stat
-import net.minecraft.text.Text
-import net.minecraft.util.Identifier
-import net.minecraft.util.WorldSavePath
-import org.lwjgl.system.linux.Stat.stat
+import net.minecraft.server.level.ServerPlayer
+import net.minecraft.stats.Stat
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.level.storage.LevelResource
+import net.minecraft.world.scores.Objective
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
@@ -113,7 +111,7 @@ object Main : ModInitializer {
             }
         }
 
-        ScoreboardUpdatedCallback.SCORE_UPDATED.register { ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int ->
+        ScoreboardUpdatedCallback.SCORE_UPDATED.register { ownerUUID: String, objective: Objective, oldScore: Int, newScore: Int ->
             onScoreboardUpdate(ownerUUID, objective, oldScore, newScore)
         }
 
@@ -130,14 +128,14 @@ object Main : ModInitializer {
             scheduledExecutor?.shutdown()
             scheduledExecutor = null
 
-            if(server.isDedicated){
+            if(server.isDedicatedServer){
                 executor.shutdown()
             }
 
             this.state = State.NOT_INITIALIZED
         }
 
-        AdvancementUpdatedCallback.CRITERION_CHANGED.register { player: ServerPlayerEntity, advancementEntry: AdvancementEntry, criteriaName: String, value: Boolean ->
+        AdvancementUpdatedCallback.CRITERION_CHANGED.register { player: ServerPlayer, advancementEntry: AdvancementHolder, criteriaName: String, value: Boolean ->
             if (this.state != State.INITIALIZED || this.settings == null) {
                 return@register
             }
@@ -146,7 +144,7 @@ object Main : ModInitializer {
             updateItem(advancementEntry, criteriaName, value)
         }
 
-        StatUpdatedCallback.EVENT.register { player: PlayerEntity, stat: Stat<*>, oldValue: Int, newValue: Int ->
+        StatUpdatedCallback.EVENT.register { player: Player, stat: Stat<*>, oldValue: Int, newValue: Int ->
             onStatUpdate(player, stat, oldValue, newValue)
         }
 
@@ -169,8 +167,8 @@ object Main : ModInitializer {
      * @param criteriaName criteria name that got updated, aka. item id
      * @param value bool value indicating if criteria is achieved or not
      */
-    private fun updateItem(advancementEntry: AdvancementEntry, criteriaName: String, value: Boolean) {
-        val advId: String = advancementEntry.id().toString()
+    private fun updateItem(advancementEntry: AdvancementHolder, criteriaName: String, value: Boolean) {
+        val advId: String = advancementEntry.id.toString()
 
         this.itemMap?.get(advId)?.get(criteriaName)?.let { itemData ->
             if (itemData.done != value) {
@@ -191,13 +189,13 @@ object Main : ModInitializer {
      * @param player Player whom progress was updated
      * @param advancementEntry the advancement that got updated
      */
-    private fun onAdvancementUpdate(player: ServerPlayerEntity, advancementEntry: AdvancementEntry) {
+    private fun onAdvancementUpdate(player: ServerPlayer, advancementEntry: AdvancementHolder) {
         if (this.settings == null || this.sheetApi == null) return
 
         val advId: String = advancementEntry.id().toString()
 
         val advancement: AdvancementData = this.advMap?.get(advId) ?: return
-        val advancementProgress = player.advancementTracker.getProgress(advancementEntry)
+        val advancementProgress = player.advancements.getOrStartProgress(advancementEntry)
         val progressGetter = advancementProgress as AdvancementProgressGetter
 
         val newCriteriaProgress: AdvancementData.Progress = progressGetter.`bac_tracker_mod$getProgress`()
@@ -218,11 +216,11 @@ object Main : ModInitializer {
             advancement.done = advancementProgress.isDone
             advancement.progress = newCriteriaProgress
             advancement.doneTime = newInstant
-            advancement.player = player.uuidAsString
+            advancement.player = player.stringUUID
         }
     }
 
-    private fun onScoreboardUpdate(ownerUUID: String, objective: ScoreboardObjective, oldScore: Int, newScore: Int) {
+    private fun onScoreboardUpdate(ownerUUID: String, objective: Objective, oldScore: Int, newScore: Int) {
         val settings = this.settings ?: return
 
         if (!settings.scoreboardEnabled) {
@@ -264,7 +262,7 @@ object Main : ModInitializer {
         )
     }
 
-    private fun onStatUpdate(player: PlayerEntity, stat: Stat<*>, oldValue: Int, newValue: Int) {
+    private fun onStatUpdate(player: Player, stat: Stat<*>, oldValue: Int, newValue: Int) {
         if (this.state != State.INITIALIZED) {
             return
         }
@@ -290,14 +288,14 @@ object Main : ModInitializer {
 
                 statData.value = newValue
 
-                if(statData.player != player.uuidAsString) {
-                    statData.player = player.uuidAsString
+                if(statData.player != player.stringUUID) {
+                    statData.player = player.stringUUID
 
                     putUpdateInPool(
                         settings.statSheet.name,
                         settings.statSheet.whoRange,
                         statData.index,
-                        getProfilePictureByUuid(player.uuidAsString)
+                        getProfilePictureByUuid(player.stringUUID)
                     )
                 }
             }
@@ -343,7 +341,7 @@ object Main : ModInitializer {
         oldAdvData: AdvancementData,
         newAdvProgress: AdvancementProgress,
         newCriteriaProgress: AdvancementData.Progress,
-        player: ServerPlayerEntity,
+        player: ServerPlayer,
         newInstant: Instant?
     ) {
         // status
@@ -374,12 +372,12 @@ object Main : ModInitializer {
             )
         }
         // player
-        if (oldAdvData.player != player.uuidAsString) {
+        if (oldAdvData.player != player.stringUUID) {
             putUpdateInPool(
                 this.settings!!.advSheet.name,
                 this.settings!!.advSheet.whoRange,
                 oldAdvData.index,
-                getProfilePictureByUuid(player.uuidAsString)
+                getProfilePictureByUuid(player.stringUUID)
             )
         }
 
@@ -390,7 +388,7 @@ object Main : ModInitializer {
             this.settings!!.advSheet.name,
             this.settings!!.advSheet.incompleteCriteriaRange,
             oldAdvData.index,
-            newAdvProgress.unobtainedCriteria.joinToString(separator = ", ")
+            newAdvProgress.remainingCriteria.joinToString(separator = ", ")
         )
     }
 
@@ -418,7 +416,7 @@ object Main : ModInitializer {
                 batchUpdate(updates)
             } catch (e: Exception) {
                 logger.error("Caught exception while making api request", e)
-                server?.sendMessage(Text.of("[BAC Tracker] Error happened while making api request, mod automatically shuts down... run `/tracker reload` when you think you fixed your stuff"))
+                server?.sendSystemMessage(Component.literal("[BAC Tracker] Error happened while making api request, mod automatically shuts down... run `/tracker reload` when you think you fixed your stuff"))
                 state = State.NOT_INITIALIZED
             }
         }
@@ -432,8 +430,8 @@ object Main : ModInitializer {
 
         val server = checkNotNull(this.server) { "Server is null. This should never happen." }
 
-        val settingsPerWorldFolder = server.getSavePath(WorldSavePath.ROOT).resolve("tracker")
-        val advancementFolder = server.getSavePath(WorldSavePath.ADVANCEMENTS)
+        val settingsPerWorldFolder = server.getWorldPath(LevelResource.ROOT).resolve("tracker")
+        val advancementFolder = server.getWorldPath(LevelResource.PLAYER_ADVANCEMENTS_DIR)
 
         val credPath = settingsGlobalFolder.resolve("credentials.json")
         val settingsFile = settingsPerWorldFolder.resolve("settings.json")
@@ -562,7 +560,7 @@ object Main : ModInitializer {
             ValueRange().setRange("${settings.statSheet.name}!${settings.statSheet.whoRange}")
                 .setValues(statIds.map { i ->
                     listOf(
-                        this.statMap?.get(i)?.player ?: server?.apiServices?.nameToIdCache?.findByName(
+                        this.statMap?.get(i)?.player ?: server?.services()?.nameToIdCache?.get(
                             this.scoreboardMap?.get(i)?.player ?: return@map emptyList()
                         )
                             ?.getOrNull()
@@ -607,7 +605,7 @@ object Main : ModInitializer {
     }
 
     private fun initScoreboard(index: Int, name: String, comp: String) {
-        val objective = server!!.scoreboard.getNullableObjective(name)
+        val objective = server!!.scoreboard.getObjective(name)
 
         if (objective == null) {
             logger.warn("non-existent scoreboard objective: {}", name)
@@ -617,7 +615,7 @@ object Main : ModInitializer {
         var (maxValue, maxValuePlayer) = maxScoreboardValue(objective, comp)
 
         if (maxValuePlayer != null) {
-            maxValuePlayer = server!!.apiServices.nameToIdCache?.findByName(maxValuePlayer)?.getOrNull()?.id?.toString()
+            maxValuePlayer = server!!.services().nameToIdCache.get(maxValuePlayer).getOrNull()?.id?.toString()
         }
 
         scoreboardMap!![name] = ScoreboardData(comp, maxValue, maxValuePlayer, index)
@@ -627,11 +625,11 @@ object Main : ModInitializer {
      * @param comp Comparison type for the scoreboard. e.g. "max" and "sum"
      * @return a pair of scoreboard value and player IGN
      */
-    private fun maxScoreboardValue(objective: ScoreboardObjective, comp: String): Pair<Int, String?> {
+    private fun maxScoreboardValue(objective: Objective, comp: String): Pair<Int, String?> {
         var maxValue = 0
         var maxValuePlayer: String? = null // as ign
 
-        for (entry in server!!.scoreboard.getScoreboardEntries(objective)) {
+        for (entry in server!!.scoreboard.listPlayerScores(objective)) {
             val value = entry.value()
 
             if (comp == "max") {
@@ -673,15 +671,15 @@ object Main : ModInitializer {
         var bestValue = 0
         var bestPlayer: String? = null
 
-        val files: Array<File> = server!!.getSavePath(WorldSavePath.STATS).toFile()
+        val files: Array<File> = server!!.getWorldPath(LevelResource.PLAYER_STATS_DIR).toFile()
             .listFiles { f: File -> f.name.endsWith(".json") }!!
 
         for (f: File in files) {
             val j: JsonObject = f.reader().use { r ->
-                GSON.fromJson(r, JsonObject::class.java).get("stats").getAsJsonObject()
+                GSON.fromJson(r, JsonObject::class.java).get("stats").asJsonObject
             }
             val value: Int =
-                j.get("minecraft:$statType")?.getAsJsonObject()?.get("minecraft:$statObj")?.asInt
+                j.get("minecraft:$statType")?.asJsonObject?.get("minecraft:$statObj")?.asInt
                     ?: continue
 
             if (comp == "max") {
@@ -718,15 +716,15 @@ object Main : ModInitializer {
     private fun updateAdvancement(advId: String, advJson: JsonObject, playerUUID: String) {
         val adv: AdvancementData = this.advMap?.get(advId) ?: return
 
-        val completedCriteria = advJson["criteria"].getAsJsonObject()
+        val completedCriteria = advJson["criteria"].asJsonObject
             .keySet()
 
         if (!adv.done) {
             adv.progress?.let { progress ->
                 progress.nom = completedCriteria.size
 
-                server!!.advancementLoader.get(Identifier.of(advId))?.let { advEntry ->
-                    progress.den = advEntry.value.requirements.length
+                server!!.advancements.get(Identifier.parse(advId))?.let { advEntry ->
+                    progress.den = advEntry.value.requirements.size()
                 }
             }
 
@@ -735,7 +733,7 @@ object Main : ModInitializer {
                 adv.player = playerUUID
                 adv.doneTime = findLatestCriteriaObtainedDate(advJson)
             } else {
-                server!!.advancementLoader.get(Identifier.of(advId))?.let { advancementEntry ->
+                server!!.advancements.get(Identifier.parse(advId))?.let { advancementEntry ->
                     adv.incomplete = advancementEntry.value
                         .criteria
                         .mapNotNull { criterion ->
@@ -762,7 +760,7 @@ object Main : ModInitializer {
         val advMap = mutableMapOf<String, AdvancementData>()
 
         for (i in advIds.indices) {
-            val advancementEntry: AdvancementEntry? = server!!.advancementLoader.get(Identifier.of(advIds[i]))
+            val advancementEntry: AdvancementHolder? = server!!.advancements.get(Identifier.parse(advIds[i]))
 
             if (advancementEntry == null) {
                 logger.warn("Couldn't find loaded advancement with name {}", advIds[i])

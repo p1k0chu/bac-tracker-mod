@@ -1,27 +1,27 @@
 package com.github.p1k0chu.mcmod.bac_tracker.mixin;
 
 import com.github.p1k0chu.mcmod.bac_tracker.event.AdvancementUpdatedCallback;
-import net.minecraft.advancement.AdvancementEntry;
-import net.minecraft.advancement.PlayerAdvancementTracker;
-import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.server.PlayerAdvancements;
+import net.minecraft.server.level.ServerPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(PlayerAdvancementTracker.class)
+@Mixin(PlayerAdvancements.class)
 public abstract class PlayerAdvancementTrackerMixin {
     @Shadow
-    private ServerPlayerEntity owner;
+    private ServerPlayer player;
 
-    @Inject(at = @At("RETURN"), method = "revokeCriterion")
-    private void revokeCriterion(AdvancementEntry advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        AdvancementUpdatedCallback.CRITERION_CHANGED.invoker().interact(owner, advancement, criterionName, false);
+    @Inject(at = @At("RETURN"), method = "revoke")
+    private void revokeCriterion(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
+        AdvancementUpdatedCallback.CRITERION_CHANGED.invoker().interact(player, advancement, criterionName, false);
     }
 
-    @Inject(at = @At("RETURN"), method = "grantCriterion")
-    private void grantCriterion(AdvancementEntry advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
-        AdvancementUpdatedCallback.CRITERION_CHANGED.invoker().interact(owner, advancement, criterionName, true);
+    @Inject(at = @At("RETURN"), method = "award")
+    private void grantCriterion(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
+        AdvancementUpdatedCallback.CRITERION_CHANGED.invoker().interact(player, advancement, criterionName, true);
     }
 }

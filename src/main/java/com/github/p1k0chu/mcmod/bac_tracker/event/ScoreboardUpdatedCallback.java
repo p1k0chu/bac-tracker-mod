@@ -2,7 +2,7 @@ package com.github.p1k0chu.mcmod.bac_tracker.event;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.scoreboard.ScoreboardObjective;
+import net.minecraft.world.scores.Objective;
 
 public interface ScoreboardUpdatedCallback {
     Event<ScoreboardUpdatedCallback> SCORE_UPDATED = EventFactory.createArrayBacked(ScoreboardUpdatedCallback.class,
@@ -15,5 +15,5 @@ public interface ScoreboardUpdatedCallback {
     /**
      * @param owner must be uuid of a player in string form or null
      */
-    void interact(String owner, ScoreboardObjective objective, int oldScore, int newScore);
+    void interact(String owner, Objective objective, int oldScore, int newScore);
 }

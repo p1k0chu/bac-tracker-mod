@@ -1,8 +1,8 @@
 plugins {
-    id("fabric-loom") version "1.14-SNAPSHOT"
+    id("net.fabricmc.fabric-loom") version "1.15-SNAPSHOT"
     id("maven-publish")
     id("com.modrinth.minotaur") version "2.+"
-    kotlin("jvm") version "2.3.0"
+    kotlin("jvm") version "2.3.20"
 }
 
 val mod_version: String by project
@@ -28,12 +28,11 @@ repositories {
 dependencies {
     // To change the versions see the gradle.properties file
     minecraft("com.mojang:minecraft:${minecraft_version}")
-    mappings("net.fabricmc:yarn:${yarn_mappings}:v2")
-    modImplementation("net.fabricmc:fabric-loader:${loader_version}")
+    implementation("net.fabricmc:fabric-loader:${loader_version}")
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
-    modImplementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+    implementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
+    implementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
 
     // gson and google api
     implementation("com.google.api-client:google-api-client:2.0.0")
@@ -67,11 +66,11 @@ tasks.processResources {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release = 21
+    options.release = 25
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 java {
@@ -95,7 +94,7 @@ modrinth {
     versionType = "release" // `release`, `beta` or `alpha`
     gameVersions.add(minecraft_version)
 
-    uploadFile.set(tasks.remapJar)
+    uploadFile.set(tasks.jar)
     loaders.add("fabric")
 
     dependencies { // A special DSL for creating dependencies
