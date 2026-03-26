@@ -62,14 +62,6 @@ object Utils {
         return "$startLetter${startNumber + index}:$endLetter"
     }
 
-    /**
-     * @param player uuid of the player
-     * @return url of profile picture as excel =IMAGE(stuff)
-     */
-    fun getProfilePictureByUuid(player: String): String {
-        return "=IMAGE(\"https://crafatar.com/avatars/$player?size=16&overlay\")"
-    }
-
     fun buildSheet(credPath: Path): Sheets {
         val email = credPath.toFile().reader().use { reader ->
             val json: JsonObject = GSON.fromJson(reader, JsonObject::class.java)
