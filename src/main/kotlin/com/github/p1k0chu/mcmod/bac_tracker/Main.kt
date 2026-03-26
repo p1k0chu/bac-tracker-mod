@@ -13,7 +13,6 @@ import com.github.p1k0chu.mcmod.bac_tracker.utils.AdvancementProgressGetter
 import com.github.p1k0chu.mcmod.bac_tracker.utils.ComparingType
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.buildSheet
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.findLatestCriteriaObtainedDate
-import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.getProfilePictureByUuid
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.makeSureDirectoryExists
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.moveRangeDownBy
 import com.github.p1k0chu.mcmod.bac_tracker.utils.Utils.parseSheetUrl
@@ -248,7 +247,7 @@ object Main : ModInitializer {
                         settings.statSheet.name,
                         settings.statSheet.whoRange,
                         scoreboardData.index,
-                        scoreboardData.player?.let { getProfilePictureByUuid(it) }
+                        scoreboardData.player
                     )
                 }
             }
@@ -295,7 +294,7 @@ object Main : ModInitializer {
                         settings.statSheet.name,
                         settings.statSheet.whoRange,
                         statData.index,
-                        getProfilePictureByUuid(player.stringUUID)
+                        player.stringUUID
                     )
                 }
             }
@@ -377,7 +376,7 @@ object Main : ModInitializer {
                 this.settings!!.advSheet.name,
                 this.settings!!.advSheet.whoRange,
                 oldAdvData.index,
-                getProfilePictureByUuid(player.stringUUID)
+                player.stringUUID
             )
         }
 
@@ -537,7 +536,7 @@ object Main : ModInitializer {
             ValueRange().setRange("${settings.advSheet.name}!${settings.advSheet.whoRange}")
                 .setValues(advIds.map { i ->
                     listOf(
-                        this.advMap?.get(i)?.player?.let(::getProfilePictureByUuid)
+                        this.advMap?.get(i)?.player
                     )
                 }),
             // incomplete criteria
@@ -566,7 +565,6 @@ object Main : ModInitializer {
                             ?.getOrNull()
                             ?.id
                             ?.toString()
-                            ?.let(::getProfilePictureByUuid)
                     )
                 }),
 
