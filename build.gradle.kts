@@ -1,5 +1,5 @@
 plugins {
-    id("net.fabricmc.fabric-loom") version "1.15-SNAPSHOT"
+    id("net.fabricmc.fabric-loom-remap") version "1.15-SNAPSHOT"
     id("maven-publish")
     id("com.modrinth.minotaur") version "2.+"
     kotlin("jvm") version "2.3.20"
@@ -28,11 +28,12 @@ repositories {
 dependencies {
     // To change the versions see the gradle.properties file
     minecraft("com.mojang:minecraft:${minecraft_version}")
-    implementation("net.fabricmc:fabric-loader:${loader_version}")
+    mappings(loom.officialMojangMappings())
+    modImplementation("net.fabricmc:fabric-loader:${loader_version}")
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    implementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
-    implementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+    modImplementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
+    modImplementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
 
     // gson and google api
     implementation("com.google.api-client:google-api-client:2.0.0")
@@ -66,11 +67,11 @@ tasks.processResources {
 }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release = 25
+    options.release = 21
 }
 
 kotlin {
-    jvmToolchain(25)
+    jvmToolchain(21)
 }
 
 java {
@@ -94,7 +95,7 @@ modrinth {
     versionType = "release" // `release`, `beta` or `alpha`
     gameVersions.add(minecraft_version)
 
-    uploadFile.set(tasks.jar)
+    uploadFile.set(tasks.remapJar)
     loaders.add("fabric")
 
     dependencies { // A special DSL for creating dependencies

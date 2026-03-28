@@ -25,7 +25,7 @@ public abstract class ScoreboardMixin {
     @Shadow
     public abstract int get();
 
-    @Shadow
+    @Shadow(aliases = "field_47548")
     @Final
     Scoreboard this$0;
 
