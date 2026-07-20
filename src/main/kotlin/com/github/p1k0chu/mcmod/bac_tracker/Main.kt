@@ -546,6 +546,9 @@ object Main : ModInitializer {
                         this.advMap?.get(i)
                             ?.incomplete
                             ?.joinToString()
+                            ?.let {
+                                if (it.length > 50000) null else it
+                            }
                     )
                 }),
 
