@@ -483,8 +483,10 @@ object Main : ModInitializer {
 
         initializeAdv(advIds)
 
-        advancementFolder.listDirectoryEntries("*.json")
-            .forEach(::updateAdvancementsFromFile)
+        if (advancementFolder.toFile().exists()) {
+            advancementFolder.listDirectoryEntries("*.json")
+                .forEach(::updateAdvancementsFromFile)
+        }
 
         // making api request to the sheet to get all tracked stats and scoreboards, and their types
         val (statIds, statTypes, comps) = batchGet(
