@@ -5,21 +5,8 @@ plugins {
     kotlin("jvm") version "2.3.20"
 }
 
-val mod_version: String by project
-val minecraft_version: String by project
-val loader_version: String by project
-val maven_group: String by project
-val yarn_mappings: String by project
-val fabric_kotlin_version: String by project
-val archives_base_name: String by project
-val fabric_version: String by project
-
-version = mod_version
-group = maven_group
-
-base {
-    archivesName = archives_base_name
-}
+version = property("mod_version") as String
+group = property("maven_group") as String
 
 repositories {
     mavenCentral()
@@ -27,12 +14,12 @@ repositories {
 
 dependencies {
     // To change the versions see the gradle.properties file
-    minecraft("com.mojang:minecraft:${minecraft_version}")
-    implementation("net.fabricmc:fabric-loader:${loader_version}")
+    minecraft("com.mojang:minecraft:${property("minecraft_version")}")
+    implementation("net.fabricmc:fabric-loader:${property("loader_version")}")
 
     // Fabric API. This is technically optional, but you probably want it anyway.
-    implementation("net.fabricmc.fabric-api:fabric-api:$fabric_version")
-    implementation("net.fabricmc:fabric-language-kotlin:$fabric_kotlin_version")
+    implementation("net.fabricmc.fabric-api:fabric-api:${property("fabric_version")}")
+    implementation("net.fabricmc:fabric-language-kotlin:${property("fabric_kotlin_version")}")
 
     // gson and google api
     implementation("com.google.api-client:google-api-client:2.0.0")
@@ -56,12 +43,14 @@ dependencies {
 }
 
 tasks.processResources {
+    val props = mapOf(
+        "version" to project.property("mod_version"),
+        "loader_version" to project.property("loader_version"),
+        "minecraft_version" to project.property("minecraft_version")
+    )
+    inputs.properties(props)
     filesMatching("fabric.mod.json") {
-        expand(
-            "version" to mod_version,
-            "loader_version" to loader_version,
-            "minecraft_version" to minecraft_version
-        )
+        expand(props)
     }
 }
 
@@ -80,19 +69,13 @@ java {
     withSourcesJar()
 }
 
-tasks.jar {
-    from("LICENSE") {
-        rename { "${it}_$archives_base_name" }
-    }
-}
-
 modrinth {
     token = System.getenv("MODRINTH_TOKEN")
     projectId = "ELPoIqXP" // This can be the project ID or the slug. Either will work!
 
-    versionNumber = mod_version
+    versionNumber = project.property("mod_version") as String
     versionType = "release" // `release`, `beta` or `alpha`
-    gameVersions.add(minecraft_version)
+    gameVersions.add(project.property("minecraft_version") as String)
 
     uploadFile.set(tasks.jar)
     loaders.add("fabric")
